@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visage.obj — Affective Computing Module</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Playfair+Display:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: oklch(0.18 0.005 100);
+    --parchment: oklch(0.96 0.012 95);
+    --silver: oklch(0.55 0.006 100);
+    --silver-light: oklch(0.80 0.005 100);
+    --hairline: oklch(0.72 0.006 100);
+    --ink-10: oklch(0.18 0.005 100 / 0.10);
+    --ink-20: oklch(0.18 0.005 100 / 0.20);
+    --ink-40: oklch(0.18 0.005 100 / 0.40);
+    --mono: 'JetBrains Mono', monospace;
+    --serif: 'Playfair Display', Georgia, serif;
+  }
+
+  html, body {
+    background: var(--parchment);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    line-height: 1.6;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── LAYOUT SHELL ── */
+  .shell {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 32px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: end;
+    padding: 28px 0 24px;
+    border-bottom: 1px solid var(--ink);
+    gap: 24px;
+  }
+  .hd-left { display: flex; flex-direction: column; gap: 4px; }
+  .hd-wordmark {
+    font-size: 13px;
+    letter-spacing: 0.28em;
+    font-weight: 500;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .hd-subtitle {
+    font-size: 9px;
+    letter-spacing: 0.30em;
+    text-transform: uppercase;
+    color: var(--silver);
+  }
+  .hd-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  .hd-install {
+    font-size: 9px;
+    letter-spacing: 0.30em;
+    text-transform: uppercase;
+    color: var(--silver);
+  }
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid var(--ink);
+    padding: 5px 12px;
+    font-size: 9px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+  }
+  .pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ink);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.25; transform: scale(0.75); }
+  }
+  .hd-right {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-end;
+  }
+  .clock-wrap { text-align: right; }
+  .clock-label { font-size: 9px; letter-spacing: 0.30em; text-transform: uppercase; color: var(--silver); display: block; margin-bottom: 4px; }
+  #live-clock { font-size: 16px; letter-spacing: 0.15em; font-weight: 300; color: var(--ink); }
+
+  /* ── MAIN GRID ── */
+  main {
+    display: grid;
+    grid-template-columns: 3fr 6fr 3fr;
+    gap: 0;
+    padding: 0;
+    align-items: start;
+  }
+
+  /* ── SIDEBAR SHARED ── */
+  .sidebar {
+    padding: 32px 28px;
+    min-height: calc(100vh - 130px);
+  }
+  .sidebar-left { border-right: 1px solid var(--ink); }
+  .sidebar-right { border-left: 1px solid var(--ink); }
+
+  .section-label {
+    font-size: 8px;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--silver);
+    margin-bottom: 20px;
+    display: block;
+  }
+
+  /* ── PROCESS CATALOGUE ── */
+  .catalogue { margin-bottom: 48px; }
+  .catalogue-item {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--hairline);
+    cursor: default;
+    transition: all 0.2s;
+  }
+  .catalogue-item:first-child { border-top: 1px solid var(--hairline); }
+  .cat-num {
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    color: var(--silver);
+    min-width: 20px;
+  }
+  .cat-name {
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--silver);
+    transition: color 0.2s;
+  }
+  .catalogue-item.active .cat-num { color: var(--ink); }
+  .catalogue-item.active .cat-name { color: var(--ink); }
+  .catalogue-item.active { position: relative; }
+  .catalogue-item.active::before {
+    content: '';
+    position: absolute;
+    left: -28px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--ink);
+  }
+
+  /* ── SPOTIFY PANEL ── */
+  .spotify-panel { margin-top: 0; }
+  .spotify-divider {
+    width: 100%;
+    height: 1px;
+    background: var(--ink);
+    margin-bottom: 28px;
+  }
+
+  .spotify-connect-btn {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--ink);
+    background: transparent;
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    padding: 12px 16px;
+    cursor: pointer;
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+    transition: color 0.5s cubic-bezier(0.19,1,0.22,1);
+  }
+  .spotify-connect-btn::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 0;
+    background: var(--ink);
+    transition: height 0.55s cubic-bezier(0.19,1,0.22,1);
+    z-index: 0;
+  }
+  .spotify-connect-btn:hover::after { height: 100%; }
+  .spotify-connect-btn:hover { color: var(--parchment); }
+  .spotify-connect-btn span { position: relative; z-index: 1; }
+
+  .spotify-track { display: none; }
+  .spotify-track.visible { display: block; }
+  .track-title {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin-bottom: 4px;
+    margin-top: 16px;
+    line-height: 1.5;
+  }
+  .track-artist {
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--silver);
+    margin-bottom: 14px;
+  }
+  .track-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .bpm-label {
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--silver);
+  }
+  .bpm-val { color: var(--ink); }
+
+  /* Equalizer */
+  .eq-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 24px;
+  }
+  .eq-bar {
+    width: 3px;
+    background: var(--ink);
+    border-radius: 0;
+    animation: eq-bounce 0.8s ease-in-out infinite alternate;
+  }
+  .eq-bar:nth-child(1) { animation-delay: 0s;    animation-duration: 0.6s; }
+  .eq-bar:nth-child(2) { animation-delay: 0.1s;  animation-duration: 0.9s; }
+  .eq-bar:nth-child(3) { animation-delay: 0.05s; animation-duration: 0.7s; }
+  .eq-bar:nth-child(4) { animation-delay: 0.15s; animation-duration: 1.0s; }
+  .eq-bar:nth-child(5) { animation-delay: 0.08s; animation-duration: 0.75s; }
+  .eq-bar:nth-child(6) { animation-delay: 0.20s; animation-duration: 0.65s; }
+  .eq-bar:nth-child(7) { animation-delay: 0.12s; animation-duration: 0.85s; }
+  @keyframes eq-bounce {
+    from { height: 3px; opacity: 0.4; }
+    to   { height: 22px; opacity: 1; }
+  }
+
+  /* ── CENTER COLUMN ── */
+  .center-col {
+    padding: 32px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* Webcam frame */
+  .cam-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4/5;
+    background: var(--ink);
+    border: 1px solid var(--silver);
+    overflow: hidden;
+    margin-bottom: 0;
+  }
+  .cam-label {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--ink);
+  }
+  .cam-label-text {
+    font-size: 8px;
+    letter-spacing: 0.30em;
+    text-transform: uppercase;
+    color: var(--parchment);
+    opacity: 0.7;
+  }
+  .cam-rec {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 8px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--parchment);
+    opacity: 0.5;
+  }
+  .cam-rec-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--parchment);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  /* Corner reticles */
+  .reticle {
+    position: absolute;
+    width: 20px; height: 20px;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .reticle-tl { top: 40px; left: 12px; border-top: 1px solid var(--silver-light); border-left: 1px solid var(--silver-light); }
+  .reticle-tr { top: 40px; right: 12px; border-top: 1px solid var(--silver-light); border-right: 1px solid var(--silver-light); }
+  .reticle-bl { bottom: 12px; left: 12px; border-bottom: 1px solid var(--silver-light); border-left: 1px solid var(--silver-light); }
+  .reticle-br { bottom: 12px; right: 12px; border-bottom: 1px solid var(--silver-light); border-right: 1px solid var(--silver-light); }
+
+  #webcam {
+    position: absolute;
+    top: 36px; left: 0; right: 0; bottom: 0;
+    width: 100%;
+    height: calc(100% - 36px);
+    object-fit: cover;
+    transform: translateZ(0) scaleX(-1);
+    backface-visibility: hidden;
+    will-change: opacity, transform;
+    mix-blend-mode: normal;
+    filter: grayscale(100%) contrast(1.08) brightness(0.92);
+    opacity: 0;
+    display: none;
+    z-index: 1;
+    transition: opacity 260ms ease;
+  }
+  #webcam.is-visible {
+    opacity: 0.9;
+  }
+
+  .no-cam {
+    position: absolute;
+    top: 36px; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 5;
+    background: var(--ink);
+  }
+  .no-cam-icon {
+    width: 52px; height: 52px;
+    border: 1px solid var(--silver);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .no-cam-icon svg { width: 22px; height: 22px; stroke: var(--silver); fill: none; stroke-width: 1; }
+  .no-cam-text {
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--silver);
+  }
+  .cam-enable-btn {
+    border: 1px solid var(--silver);
+    background: transparent;
+    color: var(--parchment);
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    padding: 10px 20px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: color 0.5s cubic-bezier(0.19,1,0.22,1);
+    margin-top: 4px;
+  }
+  .cam-enable-btn::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 0;
+    background: var(--parchment);
+    transition: height 0.55s cubic-bezier(0.19,1,0.22,1);
+    z-index: 0;
+  }
+  .cam-enable-btn:hover::after { height: 100%; }
+  .cam-enable-btn:hover { color: var(--ink); }
+  .cam-enable-btn span { position: relative; z-index: 1; }
+
+  /* Scan line */
+  .scan-line {
+    position: absolute;
+    left: 0; right: 0;
+    top: 36px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, oklch(0.85 0.01 95 / 0.6), transparent);
+    box-shadow: 0 0 8px 2px oklch(0.85 0.01 95 / 0.35);
+    z-index: 15;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .scan-line.active {
+    opacity: 1;
+    animation: scan 1.6s linear forwards;
+  }
+  @keyframes scan {
+    from { top: 36px; }
+    to   { top: calc(100% - 1px); }
+  }
+
+  /* Detect button */
+  .detect-btn {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--ink);
+    margin-top: 20px;
+    background: transparent;
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    padding: 16px 24px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: color 0.6s cubic-bezier(0.19,1,0.22,1);
+  }
+  .detect-btn::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 0;
+    background: var(--ink);
+    transition: height 0.65s cubic-bezier(0.19,1,0.22,1);
+    z-index: 0;
+  }
+  .detect-btn:hover::after { height: 100%; }
+  .detect-btn:hover { color: var(--parchment); }
+  .detect-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .detect-btn:disabled::after { display: none; }
+  .detect-btn span { position: relative; z-index: 1; }
+  .debug-toggle-btn {
+    margin-top: 10px;
+    border: 1px solid var(--hairline);
+    background: transparent;
+    color: var(--silver);
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    transition: border-color 0.2s ease, color 0.2s ease;
+  }
+  .debug-toggle-btn:hover {
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+  .debug-panel {
+    margin-top: 8px;
+    border: 1px solid var(--hairline);
+    padding: 10px 12px;
+    font-size: 8px;
+    letter-spacing: 0.12em;
+    color: var(--silver);
+    display: none;
+    background: oklch(0.96 0.008 95 / 0.55);
+  }
+  .debug-panel.visible {
+    display: block;
+  }
+  .debug-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 2px 0;
+  }
+  .debug-key {
+    text-transform: uppercase;
+  }
+  .debug-val {
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+
+  /* ── RIGHT SIDEBAR ── */
+  .resonance-label-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+
+  .mood-word {
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(48px, 7vw, 88px);
+    line-height: 1;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    min-height: 100px;
+    display: flex;
+    align-items: flex-start;
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.19,1,0.22,1);
+    margin-bottom: 40px;
+    word-break: break-word;
+  }
+  .mood-word.revealed {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Metric bars */
+  .metrics { display: flex; flex-direction: column; gap: 28px; }
+  .metric { opacity: 0; transition: opacity 0.5s ease; }
+  .metric.revealed { opacity: 1; }
+  .metric-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .metric-name {
+    font-size: 8px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--silver);
+  }
+  .metric-val {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    font-weight: 400;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .metric-track {
+    width: 100%;
+    height: 1px;
+    background: var(--hairline);
+    position: relative;
+    overflow: visible;
+  }
+  .metric-fill {
+    position: absolute;
+    left: 0; top: 0;
+    height: 1px;
+    background: var(--ink);
+    transition: width 0.8s cubic-bezier(0.19,1,0.22,1);
+    width: 0%;
+  }
+  /* For valence/arousal which are -1 to 1, we center-anchor */
+  .metric-fill.bipolar-neg {
+    left: auto;
+    right: 50%;
+  }
+  .metric-fill.bipolar-pos {
+    left: 50%;
+  }
+  .metric-zero {
+    position: absolute;
+    left: 50%;
+    top: -3px;
+    width: 1px;
+    height: 7px;
+    background: var(--hairline);
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0;
+    border-top: 1px solid var(--ink);
+  }
+  .foot-text {
+    font-size: 8px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--silver);
+  }
+
+  /* ── ANALYSING OVERLAY TEXT ── */
+  .analysing-text {
+    position: absolute;
+    bottom: 14px;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 8px;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--parchment);
+    opacity: 0;
+    z-index: 20;
+    transition: opacity 0.3s;
+  }
+  .analysing-text.visible { opacity: 0.7; }
+  .shell[data-analysis-state="awaiting"] .mood-word {
+    opacity: 0.2;
+    transform: translateY(10px);
+  }
+  .shell[data-analysis-state="awaiting"] .metric {
+    opacity: 0;
+  }
+  .shell[data-analysis-state="analyzing"] .mood-word {
+    opacity: 0.18;
+    transform: translateY(8px);
+  }
+  .shell[data-analysis-state="analyzing"] .metric {
+    opacity: 0.2;
+  }
+  .shell[data-analysis-state="analyzing"] .analysing-text {
+    opacity: 0.85;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 960px) {
+    .shell { padding: 0 20px; }
+    header { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; }
+    .hd-center { grid-column: 1 / -1; order: -1; flex-direction: row; justify-content: space-between; align-items: center; }
+    .hd-right { grid-column: 2; }
+
+    main {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto auto;
+    }
+    .sidebar { border-right: none; border-left: none; padding: 28px 0; border-bottom: 1px solid var(--ink); min-height: unset; }
+    .sidebar-left { order: 2; }
+    .sidebar-right { order: 3; border-bottom: none; }
+    .center-col { order: 1; padding: 28px 0; }
+  }
+
+  /* ── UTIL ── */
+  .mt-auto { margin-top: auto; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ── HEADER ── -->
+  <header>
+    <div class="hd-left">
+      <span class="hd-wordmark">Visage.obj</span>
+      <span class="hd-subtitle">Affective Computing Module</span>
+    </div>
+
+    <div class="hd-center">
+      <span class="hd-install">Installation 03</span>
+      <div class="status-pill">
+        <span class="pulse-dot"></span>
+        <span id="status-text">Calibrated</span>
+      </div>
+    </div>
+
+    <div class="hd-right">
+      <div class="clock-wrap">
+        <span class="clock-label">IST</span>
+        <span id="live-clock">00:00:00</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── MAIN ── -->
+  <main>
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar sidebar-left">
+      <span class="section-label">Process Catalogue</span>
+
+      <div class="catalogue" id="catalogue">
+        <div class="catalogue-item" data-step="1">
+          <span class="cat-num">01</span>
+          <span class="cat-name">Capture</span>
+        </div>
+        <div class="catalogue-item" data-step="2">
+          <span class="cat-num">02</span>
+          <span class="cat-name">Analyse</span>
+        </div>
+        <div class="catalogue-item" data-step="3">
+          <span class="cat-num">03</span>
+          <span class="cat-name">Resonate</span>
+        </div>
+        <div class="catalogue-item" data-step="4">
+          <span class="cat-num">04</span>
+          <span class="cat-name">Recall</span>
+        </div>
+      </div>
+
+      <div class="spotify-panel">
+        <div class="spotify-divider"></div>
+        <span class="section-label">Signal Source</span>
+
+        <button class="spotify-connect-btn" id="spotify-btn" onclick="connectSpotify()">
+          <span>Connect Spotify →</span>
+        </button>
+
+        <div class="spotify-track" id="spotify-track">
+          <div class="track-title" id="track-title">—</div>
+          <div class="track-artist" id="track-artist">—</div>
+          <div class="track-meta">
+            <span class="bpm-label">BPM <span class="bpm-val" id="track-bpm">—</span></span>
+            <div class="eq-bars">
+              <div class="eq-bar"></div>
+              <div class="eq-bar"></div>
+              <div class="eq-bar"></div>
+              <div class="eq-bar"></div>
+              <div class="eq-bar"></div>
+              <div class="eq-bar"></div>
+              <div class="eq-bar"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CENTER COLUMN -->
+    <section class="center-col">
+      <div class="cam-wrap" id="cam-wrap">
+        <div class="cam-label">
+          <span class="cam-label-text">Subject · Live Feed</span>
+          <span class="cam-rec">
+            <span class="cam-rec-dot"></span>
+            Live
+          </span>
+        </div>
+
+        <!-- Corner reticles -->
+        <div class="reticle reticle-tl"></div>
+        <div class="reticle reticle-tr"></div>
+        <div class="reticle reticle-bl"></div>
+        <div class="reticle reticle-br"></div>
+
+        <!-- Scan line -->
+        <div class="scan-line" id="scan-line"></div>
+
+        <!-- Analysing text -->
+        <div class="analysing-text" id="analysing-text">Analysing…</div>
+
+        <!-- Video -->
+        <video id="webcam" autoplay muted playsinline></video>
+
+        <!-- Fallback message -->
+        <div class="no-cam" id="no-cam">
+          <div class="no-cam-icon">
+            <svg viewBox="0 0 24 24"><rect x="2" y="6" width="16" height="12" rx="0"/><polygon points="18,9 22,6 22,18 18,15"/></svg>
+          </div>
+          <span class="no-cam-text" id="no-cam-text">Initialising…</span>
+          <button class="cam-enable-btn" id="cam-enable-btn" style="display:none;">
+            <span>Enable Webcam</span>
+          </button>
+        </div>
+      </div>
+
+      <button class="detect-btn" id="detect-btn" onclick="runDetection()">
+        <span id="detect-label">Detect My Emotion</span>
+      </button>
+      <button class="debug-toggle-btn" id="debug-toggle-btn" type="button">Show Debug Signals</button>
+      <div class="debug-panel" id="debug-panel">
+        <div class="debug-row"><span class="debug-key">State</span><span class="debug-val" id="dbg-state">awaiting</span></div>
+        <div class="debug-row"><span class="debug-key">Brightness</span><span class="debug-val" id="dbg-brightness">0.000</span></div>
+        <div class="debug-row"><span class="debug-key">Contrast</span><span class="debug-val" id="dbg-contrast">0.000</span></div>
+        <div class="debug-row"><span class="debug-key">Motion</span><span class="debug-val" id="dbg-motion">0.000</span></div>
+        <div class="debug-row"><span class="debug-key">Valence</span><span class="debug-val" id="dbg-valence">0.000</span></div>
+        <div class="debug-row"><span class="debug-key">Arousal</span><span class="debug-val" id="dbg-arousal">0.000</span></div>
+        <div class="debug-row"><span class="debug-key">Confidence</span><span class="debug-val" id="dbg-confidence">0%</span></div>
+      </div>
+    </section>
+
+    <!-- RIGHT SIDEBAR -->
+    <aside class="sidebar sidebar-right">
+      <div class="resonance-label-row">
+        <span class="section-label" style="margin-bottom:0">Detected Resonance</span>
+      </div>
+
+      <div class="mood-word" id="mood-word">—</div>
+
+      <div class="metrics">
+        <div class="metric" id="metric-conf">
+          <div class="metric-header">
+            <span class="metric-name">Confidence</span>
+            <span class="metric-val" id="val-conf">—</span>
+          </div>
+          <div class="metric-track">
+            <div class="metric-fill" id="fill-conf"></div>
+          </div>
+        </div>
+
+        <div class="metric" id="metric-val">
+          <div class="metric-header">
+            <span class="metric-name">Valence</span>
+            <span class="metric-val" id="val-valence">—</span>
+          </div>
+          <div class="metric-track">
+            <div class="metric-zero"></div>
+            <div class="metric-fill bipolar-pos" id="fill-valence-pos"></div>
+            <div class="metric-fill bipolar-neg" id="fill-valence-neg"></div>
+          </div>
+        </div>
+
+        <div class="metric" id="metric-aro">
+          <div class="metric-header">
+            <span class="metric-name">Arousal</span>
+            <span class="metric-val" id="val-arousal">—</span>
+          </div>
+          <div class="metric-track">
+            <div class="metric-zero"></div>
+            <div class="metric-fill bipolar-pos" id="fill-arousal-pos"></div>
+            <div class="metric-fill bipolar-neg" id="fill-arousal-neg"></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- ── FOOTER ── -->
+  <footer>
+    <span class="foot-text">Data is transient. No records retained.</span>
+    <span class="foot-text">SYS_MEM 1024MB</span>
+  </footer>
+
+</div>
+
+<script>
+  /* ── CLOCK (IST) ── */
+  function updateClock() {
+    const now = new Date();
+    const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+    const ist = new Date(utcMs + 5.5 * 3600000);
+    const h = String(ist.getHours()).padStart(2,'0');
+    const m = String(ist.getMinutes()).padStart(2,'0');
+    const s = String(ist.getSeconds()).padStart(2,'0');
+    document.getElementById('live-clock').textContent = `${h}:${m}:${s}`;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  /* ── EMOTION PROFILES ── */
+  const emotionProfiles = {
+    luminous: { word: 'luminous', song: 'Golden Hour', artist: 'JVKE', bpm: 97 },
+    serene: { word: 'serene', song: 'Gymnopédie No.1', artist: 'Erik Satie', bpm: 54 },
+    fervent: { word: 'fervent', song: 'Sabali', artist: 'Amadou & Mariam', bpm: 112 },
+    restless: { word: 'restless', song: 'Running Up That Hill', artist: 'Kate Bush', bpm: 138 },
+    pensive: { word: 'pensive', song: 'Motion Picture Soundtrack', artist: 'Radiohead', bpm: 68 },
+    wistful: { word: 'wistful', song: "Comptine d'un autre été", artist: 'Yann Tiersen', bpm: 76 }
+  };
+
+  let spotifyConnected = false;
+  let detecting = false;
+  let camStream = null;
+  let lastDetectedProfile = null;
+  let analysisCanvas = null;
+  let analysisCtx = null;
+  let analysisState = 'awaiting';
+  let debugEnabled = false;
+
+  /* ── WEBCAM ── */
+  function showCameraStatus(message, actionLabel, actionHandler) {
+    const noCam = document.getElementById('no-cam');
+    const noCamText = document.getElementById('no-cam-text');
+    const actionBtn = document.getElementById('cam-enable-btn');
+    noCam.style.display = 'flex';
+    noCamText.textContent = message;
+
+    if (actionLabel && actionHandler) {
+      actionBtn.querySelector('span').textContent = actionLabel;
+      actionBtn.onclick = actionHandler;
+      actionBtn.style.display = 'inline-flex';
+    } else {
+      actionBtn.style.display = 'none';
+      actionBtn.onclick = null;
+    }
+  }
+
+  function hasGetUserMediaSupport() {
+    return !!(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function');
+  }
+
+  async function hasVideoInputDevice() {
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.enumerateDevices !== 'function') return true;
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices.some((d) => d.kind === 'videoinput');
+  }
+
+  function stopSimulation() {
+    // No simulation fallback: keep camera frame clean black.
+  }
+
+  async function initCamera() {
+    const video = document.getElementById('webcam');
+    const status = document.getElementById('status-text');
+
+    showCameraStatus('Initialising…');
+    video.classList.remove('is-visible');
+    video.style.display = 'none';
+
+    try {
+      if (camStream) {
+        camStream.getTracks().forEach((track) => track.stop());
+        camStream = null;
+      }
+
+      if (!hasGetUserMediaSupport()) {
+        stopSimulation();
+        showCameraStatus('Browser does not support webcam capture');
+        status.textContent = 'Camera Unavailable';
+        setAnalysisState('awaiting');
+        return;
+      }
+
+      const hasCamera = await hasVideoInputDevice();
+      if (!hasCamera) {
+        stopSimulation();
+        showCameraStatus('No webcam detected on this device', 'Enable Camera', () => initCamera());
+        status.textContent = 'Camera Unavailable';
+        setAnalysisState('awaiting');
+        return;
+      }
+
+      const primaryConstraints = {
+        video: {
+          facingMode: 'user',
+          width: { ideal: 960, max: 1280 },
+          height: { ideal: 540, max: 720 },
+          frameRate: { ideal: 30, max: 30 },
+          resizeMode: 'crop-and-scale'
+        },
+        audio: false
+      };
+
+      const fallbackConstraints = {
+        video: {
+          facingMode: 'user',
+          width: { ideal: 640, max: 960 },
+          height: { ideal: 360, max: 540 },
+          frameRate: { ideal: 24, max: 30 }
+        },
+        audio: false
+      };
+
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(primaryConstraints);
+      } catch (primaryError) {
+        const primaryName = primaryError && primaryError.name ? primaryError.name : '';
+        if (primaryName !== 'OverconstrainedError' && primaryName !== 'NotReadableError') throw primaryError;
+        stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+      }
+
+      camStream = stream;
+      video.srcObject = stream;
+      video.style.display = 'block';
+      stopSimulation();
+      document.getElementById('no-cam').style.display = 'none';
+
+      await new Promise((resolve) => {
+        if (video.readyState >= 2) {
+          resolve();
+          return;
+        }
+        const onLoaded = () => {
+          video.removeEventListener('loadeddata', onLoaded);
+          resolve();
+        };
+        video.addEventListener('loadeddata', onLoaded);
+      });
+
+      await video.play();
+      requestAnimationFrame(() => video.classList.add('is-visible'));
+
+      const [videoTrack] = stream.getVideoTracks();
+      if (videoTrack && typeof videoTrack.applyConstraints === 'function') {
+        try {
+          await videoTrack.applyConstraints({ frameRate: { max: 30, ideal: 30 } });
+        } catch (_constraintError) {
+          // Non-fatal: some browsers/devices reject post-start constraints.
+        }
+      }
+
+      document.getElementById('no-cam').style.display = 'none';
+      setStep(1);
+      status.textContent = 'Ready';
+      setAnalysisState('awaiting');
+      const labelEl = document.querySelector('.cam-label-text');
+      if (labelEl) labelEl.textContent = 'Subject · Live Feed';
+    } catch (e) {
+      const errorName = e && e.name ? e.name : 'Error';
+      stopSimulation();
+      if (errorName === 'NotAllowedError' || errorName === 'SecurityError') {
+        showCameraStatus('Webcam permission denied', 'Enable Camera', () => initCamera());
+        status.textContent = 'Awaiting Camera';
+      } else if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError' || errorName === 'OverconstrainedError') {
+        showCameraStatus('No available webcam source found', 'Enable Camera', () => initCamera());
+        status.textContent = 'Camera Unavailable';
+      } else if (errorName === 'NotReadableError' || errorName === 'TrackStartError') {
+        showCameraStatus('Webcam is busy in another app', 'Enable Camera', () => initCamera());
+        status.textContent = 'Awaiting Camera';
+      } else {
+        showCameraStatus('Unable to access webcam', 'Enable Camera', () => initCamera());
+        status.textContent = 'Awaiting Camera';
+      }
+      setAnalysisState('awaiting');
+    }
+  }
+
+  // Auto-start on load
+  window.addEventListener('load', () => {
+    setTimeout(initCamera, 400);
+  });
+
+  /* ── CATALOGUE STEP ── */
+  function setStep(n) {
+    document.querySelectorAll('.catalogue-item').forEach(el => {
+      el.classList.toggle('active', parseInt(el.dataset.step) === n);
+    });
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function wait(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  function formatDebugNumber(value) {
+    if (!Number.isFinite(value)) return '0.000';
+    return value.toFixed(3);
+  }
+
+  function updateDebugPanel(payload = {}) {
+    const state = payload.state || analysisState;
+    document.getElementById('dbg-state').textContent = state;
+    document.getElementById('dbg-brightness').textContent = formatDebugNumber(payload.brightness ?? 0);
+    document.getElementById('dbg-contrast').textContent = formatDebugNumber(payload.contrast ?? 0);
+    document.getElementById('dbg-motion').textContent = formatDebugNumber(payload.motion ?? 0);
+    document.getElementById('dbg-valence').textContent = formatDebugNumber(payload.valence ?? 0);
+    document.getElementById('dbg-arousal').textContent = formatDebugNumber(payload.arousal ?? 0);
+    const confidence = Number.isFinite(payload.confidence) ? payload.confidence : 0;
+    document.getElementById('dbg-confidence').textContent = Math.round(confidence) + '%';
+  }
+
+  function toggleDebugPanel() {
+    debugEnabled = !debugEnabled;
+    const panel = document.getElementById('debug-panel');
+    const btn = document.getElementById('debug-toggle-btn');
+    panel.classList.toggle('visible', debugEnabled);
+    btn.textContent = debugEnabled ? 'Hide Debug Signals' : 'Show Debug Signals';
+    if (debugEnabled) updateDebugPanel({ state: analysisState });
+  }
+
+  function setAnalysisState(nextState) {
+    analysisState = nextState;
+    const shell = document.querySelector('.shell');
+    if (shell) shell.dataset.analysisState = nextState;
+
+    const label = document.getElementById('detect-label');
+    const status = document.getElementById('status-text');
+    if (nextState === 'awaiting') {
+      label.textContent = 'Detect My Emotion';
+      if (camStream) status.textContent = 'Ready';
+    } else if (nextState === 'analyzing') {
+      label.textContent = 'Analysing…';
+      status.textContent = 'Processing';
+    } else if (nextState === 'detected') {
+      label.textContent = 'Analyse Again';
+      status.textContent = 'Calibrated';
+    }
+    if (debugEnabled) updateDebugPanel({ state: nextState });
+  }
+
+  function resetDetectionVisuals() {
+    const moodEl = document.getElementById('mood-word');
+    moodEl.classList.remove('revealed');
+    moodEl.textContent = '—';
+    ['metric-conf','metric-val','metric-aro'].forEach((id) => {
+      document.getElementById(id).classList.remove('revealed');
+    });
+    document.getElementById('fill-conf').style.width = '0%';
+    document.getElementById('fill-valence-pos').style.width = '0%';
+    document.getElementById('fill-valence-neg').style.width = '0%';
+    document.getElementById('fill-arousal-pos').style.width = '0%';
+    document.getElementById('fill-arousal-neg').style.width = '0%';
+    document.getElementById('val-conf').textContent = '—';
+    document.getElementById('val-valence').textContent = '—';
+    document.getElementById('val-arousal').textContent = '—';
+  }
+
+  function ensureAnalysisCanvas() {
+    if (analysisCanvas && analysisCtx) return;
+    analysisCanvas = document.createElement('canvas');
+    analysisCanvas.width = 160;
+    analysisCanvas.height = 120;
+    analysisCtx = analysisCanvas.getContext('2d', { willReadFrequently: true });
+  }
+
+  function classifyEmotion(valence, arousal) {
+    if (valence >= 0.4 && arousal >= 0.35) return emotionProfiles.fervent;
+    if (valence >= 0.35 && arousal < 0.35) return emotionProfiles.serene;
+    if (valence >= 0 && arousal >= 0) return emotionProfiles.luminous;
+    if (valence < -0.25 && arousal >= 0.3) return emotionProfiles.restless;
+    if (valence < -0.35 && arousal < 0) return emotionProfiles.pensive;
+    return emotionProfiles.wistful;
+  }
+
+  async function collectEmotionSignals(videoEl, frameCount = 28, onProgress) {
+    ensureAnalysisCanvas();
+    let prevLuma = null;
+    let brightnessSum = 0;
+    let contrastSum = 0;
+    let motionSum = 0;
+    const downSampleStep = 12;
+
+    for (let frame = 0; frame < frameCount; frame++) {
+      analysisCtx.drawImage(videoEl, 0, 0, analysisCanvas.width, analysisCanvas.height);
+      const frameData = analysisCtx.getImageData(0, 0, analysisCanvas.width, analysisCanvas.height).data;
+      let sum = 0;
+      let sumSq = 0;
+      let motion = 0;
+      let sampled = 0;
+      const currLuma = new Uint8Array(Math.ceil(frameData.length / (4 * downSampleStep)));
+      let sampleIdx = 0;
+
+      for (let i = 0; i < frameData.length; i += 4 * downSampleStep) {
+        const r = frameData[i];
+        const g = frameData[i + 1];
+        const b = frameData[i + 2];
+        const luma = (0.2126 * r) + (0.7152 * g) + (0.0722 * b);
+        currLuma[sampleIdx++] = luma;
+        sum += luma;
+        sumSq += luma * luma;
+        sampled++;
+      }
+
+      const mean = sum / sampled;
+      const variance = Math.max(0, (sumSq / sampled) - (mean * mean));
+      const stdDev = Math.sqrt(variance);
+      brightnessSum += mean / 255;
+      contrastSum += stdDev / 128;
+
+      if (prevLuma) {
+        const count = Math.min(prevLuma.length, currLuma.length);
+        for (let j = 0; j < count; j++) motion += Math.abs(currLuma[j] - prevLuma[j]);
+        motionSum += (motion / count) / 255;
+      }
+
+      if (typeof onProgress === 'function') {
+        const progressFrames = frame + 1;
+        onProgress({
+          state: 'analyzing',
+          brightness: brightnessSum / progressFrames,
+          contrast: contrastSum / progressFrames,
+          motion: motionSum / Math.max(1, progressFrames - 1)
+        });
+      }
+
+      prevLuma = currLuma;
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+
+    const brightness = brightnessSum / frameCount;
+    const contrast = contrastSum / frameCount;
+    const motion = motionSum / Math.max(1, frameCount - 1);
+    return { brightness, contrast, motion };
+  }
+
+  function deriveEmotionResult(signals) {
+    const valence = clamp(((signals.brightness - 0.43) * 1.85) + ((signals.contrast - 0.24) * 0.8) - ((signals.motion - 0.12) * 0.35), -1, 1);
+    const arousal = clamp(((signals.motion - 0.08) * 3.1) + ((signals.contrast - 0.2) * 0.65), -1, 1);
+    const stability = 1 - clamp(signals.motion * 2.2, 0, 1);
+    const certainty = clamp(0.58 + (Math.abs(valence) * 0.22) + (Math.abs(arousal) * 0.18) + (stability * 0.22), 0.55, 0.98);
+    const profile = classifyEmotion(valence, arousal);
+    return {
+      ...profile,
+      valence,
+      arousal,
+      confidence: Math.round(certainty * 100)
+    };
+  }
+
+  function renderDetectionResult(result) {
+    const moodEl = document.getElementById('mood-word');
+    moodEl.textContent = result.word;
+    requestAnimationFrame(() => requestAnimationFrame(() => moodEl.classList.add('revealed')));
+
+    document.getElementById('val-conf').textContent = result.confidence + '%';
+    document.getElementById('fill-conf').style.width = result.confidence + '%';
+    document.getElementById('metric-conf').classList.add('revealed');
+
+    document.getElementById('val-valence').textContent = (result.valence >= 0 ? '+' : '') + result.valence.toFixed(2);
+    if (result.valence >= 0) {
+      document.getElementById('fill-valence-pos').style.width = (result.valence * 50) + '%';
+      document.getElementById('fill-valence-neg').style.width = '0%';
+    } else {
+      document.getElementById('fill-valence-neg').style.width = (Math.abs(result.valence) * 50) + '%';
+      document.getElementById('fill-valence-pos').style.width = '0%';
+    }
+    document.getElementById('metric-val').classList.add('revealed');
+
+    document.getElementById('val-arousal').textContent = (result.arousal >= 0 ? '+' : '') + result.arousal.toFixed(2);
+    if (result.arousal >= 0) {
+      document.getElementById('fill-arousal-pos').style.width = (result.arousal * 50) + '%';
+      document.getElementById('fill-arousal-neg').style.width = '0%';
+    } else {
+      document.getElementById('fill-arousal-neg').style.width = (Math.abs(result.arousal) * 50) + '%';
+      document.getElementById('fill-arousal-pos').style.width = '0%';
+    }
+    document.getElementById('metric-aro').classList.add('revealed');
+  }
+
+  /* ── SPOTIFY ── */
+  function connectSpotify() {
+    if (spotifyConnected) return;
+    const btn = document.getElementById('spotify-btn');
+    btn.querySelector('span').textContent = 'Connected ✓';
+    btn.style.pointerEvents = 'none';
+    spotifyConnected = true;
+    if (lastDetectedProfile) updateSpotifyTrack(lastDetectedProfile);
+  }
+
+  function updateSpotifyTrack(profile) {
+    if (!spotifyConnected || !profile) return;
+    document.getElementById('track-title').textContent  = profile.song;
+    document.getElementById('track-artist').textContent = profile.artist;
+    document.getElementById('track-bpm').textContent    = profile.bpm;
+    document.getElementById('spotify-track').classList.add('visible');
+  }
+
+  /* ── DETECTION ── */
+  async function runDetection() {
+    if (detecting) return;
+    const video = document.getElementById('webcam');
+    if (!camStream || video.readyState < 2) {
+      showCameraStatus('Enable webcam to start analysis', 'Enable Camera', () => initCamera());
+      setAnalysisState('awaiting');
+      return;
+    }
+
+    detecting = true;
+    const btn = document.getElementById('detect-btn');
+    btn.disabled = true;
+    setStep(2);
+    setAnalysisState('analyzing');
+    resetDetectionVisuals();
+    if (debugEnabled) updateDebugPanel({ state: 'analyzing' });
+
+    const scan = document.getElementById('scan-line');
+    const analysing = document.getElementById('analysing-text');
+    scan.classList.remove('active');
+    void scan.offsetWidth;
+    scan.classList.add('active');
+    analysing.classList.add('visible');
+
+    try {
+      await wait(120);
+      const signals = await collectEmotionSignals(video, 30, (progressSignals) => {
+        if (debugEnabled) updateDebugPanel(progressSignals);
+      });
+      const result = deriveEmotionResult(signals);
+      lastDetectedProfile = result;
+
+      scan.classList.remove('active');
+      analysing.classList.remove('visible');
+      await wait(100);
+      renderDetectionResult(result);
+      setAnalysisState('detected');
+      if (debugEnabled) {
+        updateDebugPanel({
+          state: 'detected',
+          brightness: signals.brightness,
+          contrast: signals.contrast,
+          motion: signals.motion,
+          valence: result.valence,
+          arousal: result.arousal,
+          confidence: result.confidence
+        });
+      }
+      setStep(3);
+      updateSpotifyTrack(result);
+      setTimeout(() => { setStep(4); setTimeout(() => setStep(1), 3000); }, 1800);
+    } catch (_err) {
+      scan.classList.remove('active');
+      analysing.classList.remove('visible');
+      setAnalysisState('awaiting');
+      document.getElementById('status-text').textContent = 'Analysis Failed';
+    } finally {
+      detecting = false;
+      btn.disabled = false;
+    }
+  }
+
+  setStep(1);
+  setAnalysisState('awaiting');
+  document.getElementById('debug-toggle-btn').addEventListener('click', toggleDebugPanel);
+</script>
+</body>
+</html>
