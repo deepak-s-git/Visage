@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Playfair+Display:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./visage-obj.css">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -457,51 +458,6 @@
   .detect-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .detect-btn:disabled::after { display: none; }
   .detect-btn span { position: relative; z-index: 1; }
-  .debug-toggle-btn {
-    margin-top: 10px;
-    border: 1px solid var(--hairline);
-    background: transparent;
-    color: var(--silver);
-    font-family: var(--mono);
-    font-size: 8px;
-    letter-spacing: 0.25em;
-    text-transform: uppercase;
-    padding: 8px 12px;
-    cursor: pointer;
-    width: 100%;
-    text-align: left;
-    transition: border-color 0.2s ease, color 0.2s ease;
-  }
-  .debug-toggle-btn:hover {
-    border-color: var(--ink);
-    color: var(--ink);
-  }
-  .debug-panel {
-    margin-top: 8px;
-    border: 1px solid var(--hairline);
-    padding: 10px 12px;
-    font-size: 8px;
-    letter-spacing: 0.12em;
-    color: var(--silver);
-    display: none;
-    background: oklch(0.96 0.008 95 / 0.55);
-  }
-  .debug-panel.visible {
-    display: block;
-  }
-  .debug-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 2px 0;
-  }
-  .debug-key {
-    text-transform: uppercase;
-  }
-  .debug-val {
-    font-variant-numeric: tabular-nums;
-    color: var(--ink);
-  }
 
   /* ── RIGHT SIDEBAR ── */
   .resonance-label-row {
@@ -618,24 +574,6 @@
     transition: opacity 0.3s;
   }
   .analysing-text.visible { opacity: 0.7; }
-  .shell[data-analysis-state="awaiting"] .mood-word {
-    opacity: 0.2;
-    transform: translateY(10px);
-  }
-  .shell[data-analysis-state="awaiting"] .metric {
-    opacity: 0;
-  }
-  .shell[data-analysis-state="analyzing"] .mood-word {
-    opacity: 0.18;
-    transform: translateY(8px);
-  }
-  .shell[data-analysis-state="analyzing"] .metric {
-    opacity: 0.2;
-  }
-  .shell[data-analysis-state="analyzing"] .analysing-text {
-    opacity: 0.85;
-  }
-
   /* ── RESPONSIVE ── */
   @media (max-width: 960px) {
     .shell { padding: 0 20px; }
@@ -780,9 +718,9 @@
       <button class="debug-toggle-btn" id="debug-toggle-btn" type="button">Show Debug Signals</button>
       <div class="debug-panel" id="debug-panel">
         <div class="debug-row"><span class="debug-key">State</span><span class="debug-val" id="dbg-state">awaiting</span></div>
-        <div class="debug-row"><span class="debug-key">Brightness</span><span class="debug-val" id="dbg-brightness">0.000</span></div>
-        <div class="debug-row"><span class="debug-key">Contrast</span><span class="debug-val" id="dbg-contrast">0.000</span></div>
-        <div class="debug-row"><span class="debug-key">Motion</span><span class="debug-val" id="dbg-motion">0.000</span></div>
+        <div class="debug-row"><span class="debug-key">Happy</span><span class="debug-val" id="dbg-brightness">0.000</span></div>
+        <div class="debug-row"><span class="debug-key">Neutral</span><span class="debug-val" id="dbg-contrast">0.000</span></div>
+        <div class="debug-row"><span class="debug-key">Tension</span><span class="debug-val" id="dbg-motion">0.000</span></div>
         <div class="debug-row"><span class="debug-key">Valence</span><span class="debug-val" id="dbg-valence">0.000</span></div>
         <div class="debug-row"><span class="debug-key">Arousal</span><span class="debug-val" id="dbg-arousal">0.000</span></div>
         <div class="debug-row"><span class="debug-key">Confidence</span><span class="debug-val" id="dbg-confidence">0%</span></div>
@@ -844,6 +782,9 @@
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="./emotion-engine.js"></script>
 <script>
   /* ── CLOCK (IST) ── */
   function updateClock() {
@@ -872,10 +813,9 @@
   let detecting = false;
   let camStream = null;
   let lastDetectedProfile = null;
-  let analysisCanvas = null;
-  let analysisCtx = null;
   let analysisState = 'awaiting';
   let debugEnabled = false;
+  let emotionEngine = null;
 
   /* ── WEBCAM ── */
   function showCameraStatus(message, actionLabel, actionHandler) {
@@ -918,6 +858,8 @@
     video.style.display = 'none';
 
     try {
+      if (detecting) stopRealtimeAnalysis();
+
       if (camStream) {
         camStream.getTracks().forEach((track) => track.stop());
         camStream = null;
@@ -1042,10 +984,6 @@
     return Math.min(max, Math.max(min, value));
   }
 
-  function wait(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
   function formatDebugNumber(value) {
     if (!Number.isFinite(value)) return '0.000';
     return value.toFixed(3);
@@ -1054,9 +992,9 @@
   function updateDebugPanel(payload = {}) {
     const state = payload.state || analysisState;
     document.getElementById('dbg-state').textContent = state;
-    document.getElementById('dbg-brightness').textContent = formatDebugNumber(payload.brightness ?? 0);
-    document.getElementById('dbg-contrast').textContent = formatDebugNumber(payload.contrast ?? 0);
-    document.getElementById('dbg-motion').textContent = formatDebugNumber(payload.motion ?? 0);
+    document.getElementById('dbg-brightness').textContent = formatDebugNumber(payload.happy ?? 0);
+    document.getElementById('dbg-contrast').textContent = formatDebugNumber(payload.neutral ?? 0);
+    document.getElementById('dbg-motion').textContent = formatDebugNumber(payload.tension ?? 0);
     document.getElementById('dbg-valence').textContent = formatDebugNumber(payload.valence ?? 0);
     document.getElementById('dbg-arousal').textContent = formatDebugNumber(payload.arousal ?? 0);
     const confidence = Number.isFinite(payload.confidence) ? payload.confidence : 0;
@@ -1083,10 +1021,10 @@
       label.textContent = 'Detect My Emotion';
       if (camStream) status.textContent = 'Ready';
     } else if (nextState === 'analyzing') {
-      label.textContent = 'Analysing…';
+      label.textContent = detecting ? 'Stop Analysis' : 'Analysing…';
       status.textContent = 'Processing';
     } else if (nextState === 'detected') {
-      label.textContent = 'Analyse Again';
+      label.textContent = detecting ? 'Stop Analysis' : 'Analyse Again';
       status.textContent = 'Calibrated';
     }
     if (debugEnabled) updateDebugPanel({ state: nextState });
@@ -1109,96 +1047,30 @@
     document.getElementById('val-arousal').textContent = '—';
   }
 
-  function ensureAnalysisCanvas() {
-    if (analysisCanvas && analysisCtx) return;
-    analysisCanvas = document.createElement('canvas');
-    analysisCanvas.width = 160;
-    analysisCanvas.height = 120;
-    analysisCtx = analysisCanvas.getContext('2d', { willReadFrequently: true });
-  }
-
-  function classifyEmotion(valence, arousal) {
-    if (valence >= 0.4 && arousal >= 0.35) return emotionProfiles.fervent;
-    if (valence >= 0.35 && arousal < 0.35) return emotionProfiles.serene;
-    if (valence >= 0 && arousal >= 0) return emotionProfiles.luminous;
-    if (valence < -0.25 && arousal >= 0.3) return emotionProfiles.restless;
-    if (valence < -0.35 && arousal < 0) return emotionProfiles.pensive;
-    return emotionProfiles.wistful;
-  }
-
-  async function collectEmotionSignals(videoEl, frameCount = 28, onProgress) {
-    ensureAnalysisCanvas();
-    let prevLuma = null;
-    let brightnessSum = 0;
-    let contrastSum = 0;
-    let motionSum = 0;
-    const downSampleStep = 12;
-
-    for (let frame = 0; frame < frameCount; frame++) {
-      analysisCtx.drawImage(videoEl, 0, 0, analysisCanvas.width, analysisCanvas.height);
-      const frameData = analysisCtx.getImageData(0, 0, analysisCanvas.width, analysisCanvas.height).data;
-      let sum = 0;
-      let sumSq = 0;
-      let motion = 0;
-      let sampled = 0;
-      const currLuma = new Uint8Array(Math.ceil(frameData.length / (4 * downSampleStep)));
-      let sampleIdx = 0;
-
-      for (let i = 0; i < frameData.length; i += 4 * downSampleStep) {
-        const r = frameData[i];
-        const g = frameData[i + 1];
-        const b = frameData[i + 2];
-        const luma = (0.2126 * r) + (0.7152 * g) + (0.0722 * b);
-        currLuma[sampleIdx++] = luma;
-        sum += luma;
-        sumSq += luma * luma;
-        sampled++;
+  function ensureEmotionEngine() {
+    if (emotionEngine) return emotionEngine;
+    emotionEngine = window.createEmotionEngine({
+      emotionProfiles,
+      onState: (state) => {
+        setAnalysisState(state);
+        if (state === 'awaiting') {
+          const scan = document.getElementById('scan-line');
+          const analysing = document.getElementById('analysing-text');
+          scan.classList.remove('active');
+          analysing.classList.remove('visible');
+        }
+      },
+      onResult: (result) => {
+        lastDetectedProfile = result;
+        renderDetectionResult(result);
+        setStep(3);
+        updateSpotifyTrack(result);
+      },
+      onDebug: (payload) => {
+        if (debugEnabled) updateDebugPanel(payload);
       }
-
-      const mean = sum / sampled;
-      const variance = Math.max(0, (sumSq / sampled) - (mean * mean));
-      const stdDev = Math.sqrt(variance);
-      brightnessSum += mean / 255;
-      contrastSum += stdDev / 128;
-
-      if (prevLuma) {
-        const count = Math.min(prevLuma.length, currLuma.length);
-        for (let j = 0; j < count; j++) motion += Math.abs(currLuma[j] - prevLuma[j]);
-        motionSum += (motion / count) / 255;
-      }
-
-      if (typeof onProgress === 'function') {
-        const progressFrames = frame + 1;
-        onProgress({
-          state: 'analyzing',
-          brightness: brightnessSum / progressFrames,
-          contrast: contrastSum / progressFrames,
-          motion: motionSum / Math.max(1, progressFrames - 1)
-        });
-      }
-
-      prevLuma = currLuma;
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-    }
-
-    const brightness = brightnessSum / frameCount;
-    const contrast = contrastSum / frameCount;
-    const motion = motionSum / Math.max(1, frameCount - 1);
-    return { brightness, contrast, motion };
-  }
-
-  function deriveEmotionResult(signals) {
-    const valence = clamp(((signals.brightness - 0.43) * 1.85) + ((signals.contrast - 0.24) * 0.8) - ((signals.motion - 0.12) * 0.35), -1, 1);
-    const arousal = clamp(((signals.motion - 0.08) * 3.1) + ((signals.contrast - 0.2) * 0.65), -1, 1);
-    const stability = 1 - clamp(signals.motion * 2.2, 0, 1);
-    const certainty = clamp(0.58 + (Math.abs(valence) * 0.22) + (Math.abs(arousal) * 0.18) + (stability * 0.22), 0.55, 0.98);
-    const profile = classifyEmotion(valence, arousal);
-    return {
-      ...profile,
-      valence,
-      arousal,
-      confidence: Math.round(certainty * 100)
-    };
+    });
+    return emotionEngine;
   }
 
   function renderDetectionResult(result) {
@@ -1249,66 +1121,50 @@
     document.getElementById('spotify-track').classList.add('visible');
   }
 
+  function stopRealtimeAnalysis() {
+    detecting = false;
+    if (emotionEngine) emotionEngine.stop();
+    setAnalysisState('awaiting');
+  }
+
   /* ── DETECTION ── */
   async function runDetection() {
-    if (detecting) return;
     const video = document.getElementById('webcam');
+    if (detecting) {
+      stopRealtimeAnalysis();
+      return;
+    }
+
     if (!camStream || video.readyState < 2) {
       showCameraStatus('Enable webcam to start analysis', 'Enable Camera', () => initCamera());
       setAnalysisState('awaiting');
       return;
     }
 
-    detecting = true;
-    const btn = document.getElementById('detect-btn');
-    btn.disabled = true;
-    setStep(2);
-    setAnalysisState('analyzing');
-    resetDetectionVisuals();
-    if (debugEnabled) updateDebugPanel({ state: 'analyzing' });
-
     const scan = document.getElementById('scan-line');
     const analysing = document.getElementById('analysing-text');
-    scan.classList.remove('active');
-    void scan.offsetWidth;
-    scan.classList.add('active');
-    analysing.classList.add('visible');
-
     try {
-      await wait(120);
-      const signals = await collectEmotionSignals(video, 30, (progressSignals) => {
-        if (debugEnabled) updateDebugPanel(progressSignals);
-      });
-      const result = deriveEmotionResult(signals);
-      lastDetectedProfile = result;
-
+      const engine = ensureEmotionEngine();
+      document.getElementById('status-text').textContent = 'Loading AI Model';
+      await engine.ensureEmotionModelLoaded();
+      detecting = true;
+      resetDetectionVisuals();
+      setStep(2);
+      setAnalysisState('analyzing');
       scan.classList.remove('active');
-      analysing.classList.remove('visible');
-      await wait(100);
-      renderDetectionResult(result);
-      setAnalysisState('detected');
-      if (debugEnabled) {
-        updateDebugPanel({
-          state: 'detected',
-          brightness: signals.brightness,
-          contrast: signals.contrast,
-          motion: signals.motion,
-          valence: result.valence,
-          arousal: result.arousal,
-          confidence: result.confidence
-        });
-      }
-      setStep(3);
-      updateSpotifyTrack(result);
-      setTimeout(() => { setStep(4); setTimeout(() => setStep(1), 3000); }, 1800);
-    } catch (_err) {
-      scan.classList.remove('active');
-      analysing.classList.remove('visible');
-      setAnalysisState('awaiting');
-      document.getElementById('status-text').textContent = 'Analysis Failed';
-    } finally {
+      void scan.offsetWidth;
+      scan.classList.add('active');
+      analysing.classList.add('visible');
+      if (debugEnabled) updateDebugPanel({ state: 'analyzing' });
+      await engine.start(video);
+    } catch (_loadErr) {
       detecting = false;
-      btn.disabled = false;
+      setAnalysisState('awaiting');
+      document.getElementById('status-text').textContent = 'Model Load Failed';
+      showCameraStatus('Could not load emotion model. Use local server and retry.', 'Retry', () => runDetection());
+      scan.classList.remove('active');
+      analysing.classList.remove('visible');
+      return;
     }
   }
 
