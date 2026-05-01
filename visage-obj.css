@@ -56,9 +56,19 @@
   opacity: 0.18;
   transform: translateY(8px);
 }
+.shell[data-analysis-state="searching"] .mood-word {
+  opacity: 0.18;
+  transform: translateY(8px);
+}
 .shell[data-analysis-state="analyzing"] .metric {
   opacity: 0.2;
 }
+.shell[data-analysis-state="searching"] .metric {
+  opacity: 0.2;
+}
 .shell[data-analysis-state="analyzing"] .analysing-text {
+  opacity: 0.85;
+}
+.shell[data-analysis-state="searching"] .analysing-text {
   opacity: 0.85;
 }

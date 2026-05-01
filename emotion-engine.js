@@ -10,6 +10,8 @@
     let loopHandle = null;
     let running = false;
     let smoothedAffect = { initialized: false, valence: 0, arousal: 0 };
+    let noFaceFrames = 0;
+    const detectorOptions = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.35 });
 
     function emitState(state) {
       if (typeof onState === 'function') onState(state);
@@ -84,14 +86,22 @@
       if (!running) return;
       try {
         const detection = await faceapi
-          .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+          .detectSingleFace(video, detectorOptions)
           .withFaceExpressions();
 
         if (!running) return;
         if (!detection || !detection.expressions) {
-          emitState('analyzing');
-          emitDebug({ state: 'analyzing' });
+          noFaceFrames += 1;
+          const nextState = noFaceFrames >= 8 ? 'searching' : 'analyzing';
+          emitState(nextState);
+          emitDebug({
+            state: nextState,
+            happy: 0,
+            neutral: 0,
+            tension: 0
+          });
         } else {
+          noFaceFrames = 0;
           const result = deriveEmotionResultFromExpressions(detection.expressions);
           if (typeof onResult === 'function') onResult(result);
           emitState('detected');
@@ -119,6 +129,7 @@
     async function start(video) {
       await ensureEmotionModelLoaded();
       running = true;
+      noFaceFrames = 0;
       smoothedAffect = { initialized: false, valence: 0, arousal: 0 };
       emitState('analyzing');
       processLoop(video);
