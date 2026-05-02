@@ -315,22 +315,67 @@ function renderDetectionResult(result) {
   document.getElementById('metric-aro').classList.add('revealed');
 }
 
-/* ── SPOTIFY ── */
-function connectSpotify() {
+/* ── SPOTIFY (Real OAuth) ── */
+
+async function connectSpotify() {
   if (spotifyConnected) return;
+
+  // If already authenticated from a previous session, just reconnect
+  if (window.spotifyAuth && window.spotifyAuth.isAuthenticated()) {
+    await handleSpotifyConnected();
+    return;
+  }
+
+  // Start the OAuth popup flow
   const btn = document.getElementById('spotify-btn');
-  btn.querySelector('span').textContent = 'Connected ✓';
+  btn.querySelector('span').textContent = 'Connecting…';
+  btn.style.pointerEvents = 'none';
+
+  if (window.spotifyAuth) {
+    await window.spotifyAuth.startAuth();
+  }
+}
+
+async function handleSpotifyConnected() {
+  const btn = document.getElementById('spotify-btn');
+
+  // Fetch user profile to show their name
+  let displayName = null;
+  if (window.spotifyAuth) {
+    const profile = await window.spotifyAuth.fetchProfile();
+    if (profile) displayName = profile.display_name;
+  }
+
+  btn.querySelector('span').textContent = displayName
+    ? `${displayName} ✓`
+    : 'Connected ✓';
   btn.style.pointerEvents = 'none';
   spotifyConnected = true;
+
   if (lastDetectedProfile) updateSpotifyTrack(lastDetectedProfile);
 }
 
-function updateSpotifyTrack(profile) {
+async function updateSpotifyTrack(profile) {
   if (!spotifyConnected || !profile) return;
+
   document.getElementById('track-title').textContent  = profile.song;
   document.getElementById('track-artist').textContent = profile.artist;
   document.getElementById('track-bpm').textContent    = profile.bpm;
   document.getElementById('spotify-track').classList.add('visible');
+
+  // Search for the actual track on Spotify
+  if (window.spotifyAuth) {
+    try {
+      const track = await window.spotifyAuth.searchTrack(profile.song, profile.artist);
+      if (track) {
+        // Store the URI so playback can be triggered later
+        window._currentSpotifyTrackUri = track.uri;
+        window._currentSpotifyTrack = track;
+      }
+    } catch (err) {
+      console.warn('[Visage] Track search failed:', err);
+    }
+  }
 }
 
 function stopRealtimeAnalysis() {
@@ -383,6 +428,29 @@ async function runDetection() {
 setStep(1);
 setAnalysisState('awaiting');
 document.getElementById('debug-toggle-btn').addEventListener('click', toggleDebugPanel);
+
+/* ── Spotify Auth Event Listeners ── */
+
+// When OAuth popup completes successfully
+window.addEventListener('spotify-authenticated', async () => {
+  await handleSpotifyConnected();
+});
+
+// If auth fails, reset the button
+window.addEventListener('spotify-auth-error', () => {
+  const btn = document.getElementById('spotify-btn');
+  btn.querySelector('span').textContent = 'Connect Spotify →';
+  btn.style.pointerEvents = 'auto';
+});
+
+// Auto-reconnect on page load if token exists from a previous session
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    if (window.spotifyAuth && window.spotifyAuth.isAuthenticated()) {
+      handleSpotifyConnected();
+    }
+  }, 600);
+});
 
 window.connectSpotify = connectSpotify;
 window.runDetection = runDetection;
