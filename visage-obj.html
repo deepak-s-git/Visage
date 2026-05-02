@@ -197,9 +197,14 @@
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-<script src="./emotion-engine.js"></script>
-<script src="./visage-app.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs"
+  }
+}
+</script>
+<script type="module" src="./emotion-engine.js"></script>
+<script type="module" src="./visage-app.js"></script>
 </body>
 </html>
