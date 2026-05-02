@@ -26,10 +26,7 @@
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
     }
-    .callback-box {
-      text-align: center;
-      padding: 48px;
-    }
+    .callback-box { text-align: center; padding: 48px; }
     .callback-status {
       font-size: 9px;
       letter-spacing: 0.30em;
@@ -44,22 +41,15 @@
       color: var(--ink);
     }
     .spinner {
-      width: 24px;
-      height: 24px;
+      width: 24px; height: 24px;
       border: 1px solid var(--silver);
       border-top-color: var(--ink);
       border-radius: 50%;
       margin: 0 auto 20px;
       animation: spin 0.8s linear infinite;
     }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    .check {
-      font-size: 20px;
-      margin-bottom: 16px;
-      display: none;
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .check { font-size: 20px; margin-bottom: 16px; display: none; }
     .check.visible { display: block; }
     .error { color: oklch(0.50 0.15 25); }
   </style>
@@ -72,44 +62,121 @@
     <div class="callback-message" id="message">Connecting to Spotify…</div>
   </div>
 
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-    const error = params.get('error');
+  <!-- Load config to get CLIENT_ID -->
+  <script src="./config.js"></script>
 
+  <script>
     const spinner = document.getElementById('spinner');
     const check = document.getElementById('check');
     const status = document.getElementById('status');
     const message = document.getElementById('message');
 
-    if (code && window.opener) {
-      // Send the auth code back to the main window
-      window.opener.postMessage(
-        { type: 'spotify-callback', code: code },
-        window.location.origin
-      );
-
+    function showSuccess(msg) {
       spinner.style.display = 'none';
       check.classList.add('visible');
       status.textContent = 'Authenticated';
-      message.textContent = 'Closing this window…';
+      message.textContent = msg || 'Closing this window…';
+    }
 
-      setTimeout(() => window.close(), 1200);
-    } else if (error) {
+    function showError(msg) {
       spinner.style.display = 'none';
       status.textContent = 'Failed';
       status.classList.add('error');
-      message.textContent = error === 'access_denied'
-        ? 'Permission denied by user'
-        : 'Error: ' + error;
-
-      setTimeout(() => window.close(), 3000);
-    } else {
-      spinner.style.display = 'none';
-      status.textContent = 'Error';
-      message.textContent = 'No authorization code received';
-      setTimeout(() => window.close(), 3000);
+      message.textContent = msg;
     }
+
+    (async function handleCallback() {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+      const error = params.get('error');
+
+      if (error) {
+        showError(error === 'access_denied'
+          ? 'Permission denied by user'
+          : 'Error: ' + error);
+        setTimeout(() => window.close(), 3000);
+        return;
+      }
+
+      if (!code) {
+        showError('No authorization code received');
+        setTimeout(() => window.close(), 3000);
+        return;
+      }
+
+      // Get config
+      const clientId = (typeof SPOTIFY_CONFIG !== 'undefined' && SPOTIFY_CONFIG.CLIENT_ID)
+        ? SPOTIFY_CONFIG.CLIENT_ID
+        : null;
+
+      if (!clientId) {
+        showError('Missing config.js — cannot complete auth');
+        return;
+      }
+
+      // Get the PKCE verifier stored by the main page
+      const verifier = localStorage.getItem('visage_spotify_verifier');
+      if (!verifier) {
+        showError('Missing PKCE verifier — try connecting again');
+        setTimeout(() => window.close(), 3000);
+        return;
+      }
+
+      // Build redirect URI (same logic as spotify-auth.js)
+      const origin = window.location.hostname === 'localhost'
+        ? window.location.origin.replace('localhost', '127.0.0.1')
+        : window.location.origin;
+      const redirectUri = `${origin}/callback.html`;
+
+      // Exchange the authorization code for tokens
+      message.textContent = 'Exchanging token…';
+
+      try {
+        const res = await fetch('https://accounts.spotify.com/api/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: clientId,
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: redirectUri,
+            code_verifier: verifier
+          })
+        });
+
+        const data = await res.json();
+
+        if (!data.access_token) {
+          showError(data.error_description || data.error || 'Token exchange failed');
+          setTimeout(() => window.close(), 4000);
+          return;
+        }
+
+        // Store tokens in localStorage (main page will detect this)
+        localStorage.setItem('visage_spotify_token', data.access_token);
+        if (data.refresh_token) {
+          localStorage.setItem('visage_spotify_refresh', data.refresh_token);
+        }
+        localStorage.setItem(
+          'visage_spotify_expiry',
+          String(Date.now() + data.expires_in * 1000)
+        );
+
+        // Clean up the verifier
+        localStorage.removeItem('visage_spotify_verifier');
+
+        // Signal the main window that auth is complete
+        localStorage.setItem('visage_spotify_auth_complete', Date.now().toString());
+
+        showSuccess('Authenticated! Closing…');
+        setTimeout(() => window.close(), 1200);
+
+      } catch (err) {
+        showError('Network error during token exchange');
+        console.error('[Visage Callback]', err);
+        setTimeout(() => window.close(), 4000);
+      }
+    })();
   </script>
 </body>
 </html>
