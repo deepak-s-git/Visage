@@ -13,12 +13,13 @@ setInterval(updateClock, 1000);
 
 /* ── EMOTION PROFILES ── */
 const emotionProfiles = {
-  luminous: { word: 'luminous', song: 'Golden Hour', artist: 'JVKE', bpm: 97 },
-  serene: { word: 'serene', song: 'Gymnopédie No.1', artist: 'Erik Satie', bpm: 54 },
-  fervent: { word: 'fervent', song: 'Sabali', artist: 'Amadou & Mariam', bpm: 112 },
-  restless: { word: 'restless', song: 'Running Up That Hill', artist: 'Kate Bush', bpm: 138 },
-  pensive: { word: 'pensive', song: 'Motion Picture Soundtrack', artist: 'Radiohead', bpm: 68 },
-  wistful: { word: 'wistful', song: "Comptine d'un autre été", artist: 'Yann Tiersen', bpm: 76 }
+  happy:     { word: 'Happy',     song: 'Golden Hour',               artist: 'JVKE',        bpm: 97  },
+  sad:       { word: 'Sad',       song: 'Motion Picture Soundtrack',  artist: 'Radiohead',   bpm: 68  },
+  angry:     { word: 'Angry',     song: 'Running Up That Hill',       artist: 'Kate Bush',   bpm: 138 },
+  surprised: { word: 'Surprised', song: 'Sabali',                     artist: 'Amadou & Mariam', bpm: 112 },
+  disgusted: { word: 'Disgusted', song: 'Creep',                      artist: 'Radiohead',   bpm: 92  },
+  fearful:   { word: 'Fearful',   song: 'Breathe Me',                 artist: 'Sia',         bpm: 62  },
+  neutral:   { word: 'Neutral',   song: 'Gymnopédie No.1',            artist: 'Erik Satie',  bpm: 54  }
 };
 
 let spotifyConnected = false;
