@@ -1,13 +1,8 @@
-/* ═══════════════════════════════════════════════════════════════
-   Spotify OAuth · PKCE Flow (no backend required)
-   ─────────────────────────────────────────────────────────────
-   1. Create an app at https://developer.spotify.com/dashboard
-   2. Set Redirect URI to: http://127.0.0.1:3000/callback.html
-   3. Paste your Client ID below
-   ═══════════════════════════════════════════════════════════════ */
 
-// ⚠️  PASTE YOUR SPOTIFY CLIENT ID HERE
-const CLIENT_ID = 'YOUR_CLIENT_ID_HERE';
+// Client ID is loaded from config.js ]
+const CLIENT_ID = (typeof SPOTIFY_CONFIG !== 'undefined' && SPOTIFY_CONFIG.CLIENT_ID)
+  ? SPOTIFY_CONFIG.CLIENT_ID
+  : 'MISSING';
 
 // Spotify requires 127.0.0.1 instead of localhost for development
 const origin = window.location.hostname === 'localhost'
@@ -59,16 +54,16 @@ async function generateCodeChallenge(verifier) {
 /* ── Authorization ── */
 
 async function startAuth() {
-  if (CLIENT_ID === 'YOUR_CLIENT_ID_HERE') {
+  if (CLIENT_ID === 'MISSING' || CLIENT_ID === 'YOUR_CLIENT_ID_HERE') {
     console.error(
       '[Visage] Set your Spotify Client ID in spotify-auth.js before connecting.'
     );
     alert(
       'Set your Spotify Client ID in spotify-auth.js\n\n' +
-        '1. Go to https://developer.spotify.com/dashboard\n' +
-        '2. Create an app\n' +
-        '3. Add redirect URI: ' + REDIRECT_URI + '\n' +
-        '4. Copy Client ID into spotify-auth.js'
+      '1. Go to https://developer.spotify.com/dashboard\n' +
+      '2. Create an app\n' +
+      '3. Add redirect URI: ' + REDIRECT_URI + '\n' +
+      '4. Copy Client ID into spotify-auth.js'
     );
     return;
   }
