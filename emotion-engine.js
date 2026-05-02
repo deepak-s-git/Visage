@@ -112,31 +112,11 @@ function createEmotionEngine({ emotionProfiles, onState, onResult, onDebug }) {
     return true;
   }
 
-  /* ── Classify blendshape-derived emotions → mood profile ── */
-  function classifyEmotionFromExpressions(expressions, valence, arousal) {
+  /* ── Classify: pick the dominant emotion directly ── */
+  function classifyEmotionFromExpressions(expressions) {
     const sorted = Object.entries(expressions).sort((a, b) => b[1] - a[1]);
     const dominant = sorted[0]?.[0] || 'neutral';
-
-    if (dominant === 'happy')
-      return arousal > 0.45
-        ? emotionProfiles.fervent
-        : emotionProfiles.luminous;
-    if (dominant === 'surprised') return emotionProfiles.fervent;
-    if (
-      dominant === 'angry' ||
-      dominant === 'fearful' ||
-      dominant === 'disgusted'
-    )
-      return emotionProfiles.restless;
-    if (dominant === 'sad')
-      return valence < -0.45
-        ? emotionProfiles.pensive
-        : emotionProfiles.wistful;
-    if (dominant === 'neutral')
-      return arousal < -0.15
-        ? emotionProfiles.serene
-        : emotionProfiles.wistful;
-    return emotionProfiles.wistful;
+    return emotionProfiles[dominant] || emotionProfiles.neutral;
   }
 
   /* ── Derive valence / arousal / profile from expression scores ── */
@@ -181,11 +161,7 @@ function createEmotionEngine({ emotionProfiles, onState, onResult, onDebug }) {
         (rawArousal - smoothedAffect.arousal) * alpha;
     }
 
-    const profile = classifyEmotionFromExpressions(
-      expressions,
-      smoothedAffect.valence,
-      smoothedAffect.arousal
-    );
+    const profile = classifyEmotionFromExpressions(expressions);
     const confidence = Math.round(
       clamp(Math.max(...Object.values(expressions)) * 100, 0, 99)
     );
