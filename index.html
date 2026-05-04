@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visage.obj — Affective Computing Module</title>
+  <meta name="description"
+    content="Visage.obj is an affective computing installation that reads human emotion through facial analysis and translates it into sound.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Playfair+Display:ital,wght@1,400;1,500&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="./src/styles/visage-core.css">
+  <link rel="stylesheet" href="./src/styles/visage-obj.css">
+  <link rel="stylesheet" href="./src/styles/visage-anim.css">
+
+  <style>
+    /* Inline critical: prevent flash */
+    html {
+      background: #040406;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- LOADING SCREEN -->
+
+  <div class="loading-screen" id="loading-screen">
+    <div class="loading-wordmark" aria-hidden="true">
+      <span>V</span><span>i</span><span>s</span><span>a</span><span>g</span><span>e</span><span>.</span><span>o</span><span>b</span><span>j</span>
+    </div>
+    <div class="loading-bar-track">
+      <div class="loading-bar-fill"></div>
+    </div>
+    <div class="loading-status">Initialising Affective Module</div>
+  </div>
+
+
+  <!-- SECTION 1: CINEMATIC LANDING -->
+
+  <section class="landing" id="landing">
+    <canvas class="landing-canvas" id="landing-canvas"></canvas>
+    <div class="landing-grain" aria-hidden="true"></div>
+
+    <!-- Brutalist corner markers -->
+    <div class="landing-corner corner-tl"></div>
+    <div class="landing-corner corner-tr"></div>
+    <div class="landing-corner corner-bl"></div>
+    <div class="landing-corner corner-br"></div>
+
+    <!-- Content -->
+    <div class="landing-content">
+      <div class="landing-eyebrow">Installation 03</div>
+      <h1 class="landing-title">
+        <span class="title-line">Visage</span><span class="title-dot">.</span><span class="title-ext">obj</span>
+      </h1>
+      <p class="landing-subtitle">Affective Computing Module</p>
+      <p class="landing-version">v3.1 · Emotion Interface</p>
+    </div>
+
+    <!-- Scroll cue -->
+    <div class="scroll-cue" id="scroll-cue">
+      <span class="scroll-text">Enter Installation</span>
+      <div class="scroll-line-track">
+        <div class="scroll-line-fill"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRANSITION: Dark → Parchment gradient -->
+
+  <div class="transition-overlay"></div>
+
+  <!-- SECTION 2: MAIN INTERFACE (existing Visage.obj) -->
+  <section class="main-interface" id="main-interface">
+    <div class="shell">
+
+      <!-- ── HEADER ── -->
+      <header>
+        <div class="hd-left">
+          <span class="hd-wordmark">Visage.obj</span>
+          <span class="hd-subtitle">Affective Computing Module</span>
+        </div>
+
+        <div class="hd-center">
+          <span class="hd-install">Installation 03</span>
+          <div class="status-pill">
+            <span class="pulse-dot"></span>
+            <span id="status-text">Calibrated</span>
+          </div>
+        </div>
+
+        <div class="hd-right">
+          <div class="clock-wrap">
+            <span class="clock-label">IST</span>
+            <span id="live-clock">00:00:00</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- ── MAIN ── -->
+      <main>
+
+        <!-- LEFT SIDEBAR -->
+        <aside class="sidebar sidebar-left">
+          <span class="section-label">Process Catalogue</span>
+
+          <div class="catalogue" id="catalogue">
+            <div class="catalogue-item" data-step="1">
+              <span class="cat-num">01</span>
+              <span class="cat-name">Capture</span>
+            </div>
+            <div class="catalogue-item" data-step="2">
+              <span class="cat-num">02</span>
+              <span class="cat-name">Analyse</span>
+            </div>
+            <div class="catalogue-item" data-step="3">
+              <span class="cat-num">03</span>
+              <span class="cat-name">Resonate</span>
+            </div>
+            <div class="catalogue-item" data-step="4">
+              <span class="cat-num">04</span>
+              <span class="cat-name">Recall</span>
+            </div>
+          </div>
+
+          <div class="spotify-panel">
+            <div class="spotify-divider"></div>
+            <span class="section-label">Signal Source</span>
+
+            <button class="spotify-connect-btn" id="spotify-btn" onclick="connectSpotify()">
+              <span>Connect Spotify →</span>
+            </button>
+
+            <div class="spotify-track" id="spotify-track">
+              <div class="track-title" id="track-title">—</div>
+              <div class="track-artist" id="track-artist">—</div>
+              <div class="track-meta">
+                <span class="bpm-label">BPM <span class="bpm-val" id="track-bpm">—</span></span>
+                <div class="eq-bars">
+                  <div class="eq-bar"></div>
+                  <div class="eq-bar"></div>
+                  <div class="eq-bar"></div>
+                  <div class="eq-bar"></div>
+                  <div class="eq-bar"></div>
+                  <div class="eq-bar"></div>
+                  <div class="eq-bar"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- CENTER COLUMN -->
+        <section class="center-col">
+          <div class="cam-wrap" id="cam-wrap">
+            <div class="cam-label">
+              <span class="cam-label-text">Subject · Live Feed</span>
+              <span class="cam-rec">
+                <span class="cam-rec-dot"></span>
+                Live
+              </span>
+            </div>
+
+            <!-- Corner reticles -->
+            <div class="reticle reticle-tl"></div>
+            <div class="reticle reticle-tr"></div>
+            <div class="reticle reticle-bl"></div>
+            <div class="reticle reticle-br"></div>
+
+            <!-- Scan line -->
+            <div class="scan-line" id="scan-line"></div>
+
+            <!-- Analysing text -->
+            <div class="analysing-text" id="analysing-text">Analysing…</div>
+
+            <!-- Video -->
+            <video id="webcam" autoplay muted playsinline></video>
+
+            <!-- Fallback message -->
+            <div class="no-cam" id="no-cam">
+              <div class="no-cam-icon">
+                <svg viewBox="0 0 24 24">
+                  <rect x="2" y="6" width="16" height="12" rx="0" />
+                  <polygon points="18,9 22,6 22,18 18,15" />
+                </svg>
+              </div>
+              <span class="no-cam-text" id="no-cam-text">Initialising…</span>
+              <button class="cam-enable-btn" id="cam-enable-btn" style="display:none;">
+                <span>Enable Webcam</span>
+              </button>
+            </div>
+          </div>
+
+          <button class="detect-btn" id="detect-btn" onclick="runDetection()">
+            <span id="detect-label">Detect My Emotion</span>
+          </button>
+          <button class="debug-toggle-btn" id="debug-toggle-btn" type="button">Show Debug Signals</button>
+          <div class="debug-panel" id="debug-panel">
+            <div class="debug-row"><span class="debug-key">State</span><span class="debug-val"
+                id="dbg-state">awaiting</span></div>
+            <div class="debug-row"><span class="debug-key">Happy</span><span class="debug-val"
+                id="dbg-brightness">0.000</span></div>
+            <div class="debug-row"><span class="debug-key">Neutral</span><span class="debug-val"
+                id="dbg-contrast">0.000</span></div>
+            <div class="debug-row"><span class="debug-key">Tension</span><span class="debug-val"
+                id="dbg-motion">0.000</span></div>
+            <div class="debug-row"><span class="debug-key">Valence</span><span class="debug-val"
+                id="dbg-valence">0.000</span></div>
+            <div class="debug-row"><span class="debug-key">Arousal</span><span class="debug-val"
+                id="dbg-arousal">0.000</span></div>
+            <div class="debug-row"><span class="debug-key">Confidence</span><span class="debug-val"
+                id="dbg-confidence">0%</span></div>
+          </div>
+        </section>
+
+        <!-- RIGHT SIDEBAR -->
+        <aside class="sidebar sidebar-right">
+          <div class="resonance-label-row">
+            <span class="section-label" style="margin-bottom:0">Detected Emotion</span>
+          </div>
+
+          <div class="mood-word" id="mood-word">—</div>
+
+          <div class="metrics">
+            <div class="metric" id="metric-conf">
+              <div class="metric-header">
+                <span class="metric-name">Confidence</span>
+                <span class="metric-val" id="val-conf">—</span>
+              </div>
+              <div class="metric-track">
+                <div class="metric-fill" id="fill-conf"></div>
+              </div>
+            </div>
+
+            <div class="metric" id="metric-val">
+              <div class="metric-header">
+                <span class="metric-name">Valence</span>
+                <span class="metric-val" id="val-valence">—</span>
+              </div>
+              <div class="metric-track">
+                <div class="metric-zero"></div>
+                <div class="metric-fill bipolar-pos" id="fill-valence-pos"></div>
+                <div class="metric-fill bipolar-neg" id="fill-valence-neg"></div>
+              </div>
+            </div>
+
+            <div class="metric" id="metric-aro">
+              <div class="metric-header">
+                <span class="metric-name">Arousal</span>
+                <span class="metric-val" id="val-arousal">—</span>
+              </div>
+              <div class="metric-track">
+                <div class="metric-zero"></div>
+                <div class="metric-fill bipolar-pos" id="fill-arousal-pos"></div>
+                <div class="metric-fill bipolar-neg" id="fill-arousal-neg"></div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+      </main>
+
+      <!-- ── FOOTER ── -->
+      <footer>
+        <span class="foot-text">Data is transient. No records retained.</span>
+        <span class="foot-text">SYS_MEM 1024MB</span>
+      </footer>
+
+    </div>
+  </section>
+
+  <!-- ── GRAIN OVERLAY ── -->
+  <div class="grain-overlay" aria-hidden="true"></div>
+
+  <!-- SCRIPTS -->
+
+
+  <!-- Config (gitignored, not bundled) -->
+  <script src="./config.js"></script>
+
+  <!-- Legacy scripts (use window globals) -->
+  <script type="module" src="./src/auth/spotify-auth.js"></script>
+  <script type="module" src="./src/emotion/emotion-engine.js"></script>
+  <script type="module" src="./src/app/visage-app.js"></script>
+
+  <!-- Vite entry (Three.js + GSAP, bundled) -->
+  <script type="module" src="./src/main.js"></script>
+
+</body>
+
+</html>
