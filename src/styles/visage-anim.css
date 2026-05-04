@@ -1,0 +1,275 @@
+/* VISAGE · Animation Layer — Dark Cinematic Edition */
+
+/* ── LOADING SCREEN ── */
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #040406;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+}
+
+.loading-wordmark {
+  font-family: var(--mono);
+  font-size: 16px;
+  letter-spacing: 0.50em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+  overflow: hidden;
+}
+
+.loading-wordmark span {
+  display: inline-block;
+  transform: translateY(120%);
+  opacity: 0;
+}
+
+.loading-bar-track {
+  width: 200px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.loading-bar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 0%;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+.loading-status {
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.25);
+  opacity: 0;
+}
+
+/* ── FILM GRAIN OVERLAY ── */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  opacity: 0.04;
+  mix-blend-mode: screen;
+}
+
+.grain-overlay::before {
+  content: '';
+  position: absolute;
+  inset: -25%;
+  width: 150%;
+  height: 150%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  background-size: 256px 256px;
+  animation: grain-drift 8s steps(4) infinite;
+}
+
+@keyframes grain-drift {
+  0% {
+    transform: translate(0, 0);
+  }
+
+  25% {
+    transform: translate(-5%, -5%);
+  }
+
+  50% {
+    transform: translate(3%, -8%);
+  }
+
+  75% {
+    transform: translate(-8%, 3%);
+  }
+
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+/* ── PAGE STATE ── */
+.shell {
+  opacity: 1;
+}
+
+/* ── HEADER ── */
+header .hd-wordmark,
+header .hd-subtitle,
+header .hd-install,
+header .status-pill,
+header .clock-wrap {
+  opacity: 1;
+}
+
+/* ── MOOD WORD CHARACTER ANIMATION ── */
+.mood-word .char {
+  display: inline-block;
+  transform: translateY(100%);
+  opacity: 0;
+  transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1),
+    opacity 0.4s ease;
+}
+
+.mood-word.revealed .char {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* ── STATUS PILL STATES ── */
+.status-pill {
+  transition: all 0.4s ease;
+}
+
+.status-pill.state-processing {
+  background: rgba(100, 200, 255, 0.08);
+  border-color: rgba(100, 200, 255, 0.2);
+}
+
+.status-pill.state-processing .pulse-dot {
+  background: rgba(100, 200, 255, 0.8);
+  box-shadow: 0 0 8px rgba(100, 200, 255, 0.4);
+}
+
+.status-pill.state-searching {
+  border-color: rgba(255, 180, 100, 0.3);
+}
+
+.status-pill.state-searching .pulse-dot {
+  background: rgba(255, 180, 100, 0.8);
+  box-shadow: 0 0 8px rgba(255, 180, 100, 0.4);
+  animation: pulse-fast 0.8s ease-in-out infinite;
+}
+
+@keyframes pulse-fast {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.2;
+    transform: scale(0.5);
+  }
+}
+
+/* ── CATALOGUE HOVER ── */
+.catalogue-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.catalogue-item::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.3), transparent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+.catalogue-item:hover::after {
+  transform: scaleX(1);
+}
+
+/* ── DETECT BUTTON ── */
+.detect-btn {
+  transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+.detect-btn:hover {
+  letter-spacing: 0.40em;
+}
+
+/* ── WEBCAM SCANNING STATE ── */
+.shell[data-analysis-state="analyzing"] .cam-wrap {
+  border-color: rgba(100, 200, 255, 0.2);
+  box-shadow:
+    0 0 40px rgba(0, 0, 0, 0.6),
+    0 0 60px rgba(100, 200, 255, 0.05);
+  transition: all 0.6s ease;
+}
+
+.shell[data-analysis-state="detected"] .cam-wrap {
+  border-color: rgba(74, 222, 128, 0.15);
+  box-shadow:
+    0 0 40px rgba(0, 0, 0, 0.6),
+    0 0 60px rgba(74, 222, 128, 0.04);
+  transition: all 0.6s ease;
+}
+
+.shell[data-analysis-state="searching"] .cam-wrap {
+  border-color: rgba(255, 180, 100, 0.15);
+  transition: all 0.6s ease;
+}
+
+/* ── METRIC FILL GLOW ── */
+.metric-fill {
+  position: relative;
+}
+
+.metric-fill::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: -2px;
+  width: 1px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.metric.revealed .metric-fill::after {
+  opacity: 1;
+}
+
+/* ── FOOTER ── */
+footer {
+  position: relative;
+}
+
+footer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transform-origin: center;
+}
+
+/* ── EQ GLOW ── */
+.spotify-track.visible .eq-bar {
+  background: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.15);
+}
+
+/* ── REDUCED MOTION ── */
+@media (prefers-reduced-motion: reduce) {
+  .grain-overlay::before {
+    animation: none;
+  }
+
+  .loading-screen {
+    display: none;
+  }
+}
