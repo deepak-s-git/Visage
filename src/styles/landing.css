@@ -1,0 +1,302 @@
+/* VISAGE · Landing Section Styles */
+
+/* ── Landing Section ── */
+.landing {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: #080808;
+  z-index: 10;
+}
+
+.landing-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* ── Content Layer ── */
+.landing-content {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.landing-eyebrow {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.45em;
+  text-transform: uppercase;
+  color: oklch(0.55 0.005 100);
+  margin-bottom: 24px;
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+/* ── Title Typography ── */
+.landing-title {
+  font-family: var(--mono);
+  font-size: clamp(42px, 8vw, 96px);
+  font-weight: 300;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: oklch(0.88 0.008 95);
+  line-height: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.title-line {
+  display: inline-block;
+}
+
+.title-dot {
+  color: oklch(0.50 0.008 95);
+  margin: 0 2px;
+}
+
+.title-ext {
+  font-weight: 400;
+  color: oklch(0.60 0.008 95);
+}
+
+/* ── Subtitle ── */
+.landing-subtitle {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 300;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: oklch(0.45 0.005 100);
+  margin-top: 20px;
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+/* ── Version Tag ── */
+.landing-version {
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.30em;
+  text-transform: uppercase;
+  color: oklch(0.30 0.005 100);
+  margin-top: 12px;
+  opacity: 0;
+}
+
+/* ── Scroll Cue ── */
+.scroll-cue {
+  position: absolute;
+  bottom: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  z-index: 3;
+  opacity: 0;
+}
+
+.scroll-text {
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: oklch(0.45 0.005 100);
+}
+
+.scroll-line-track {
+  width: 1px;
+  height: 48px;
+  background: oklch(0.20 0.005 100);
+  position: relative;
+  overflow: hidden;
+}
+
+.scroll-line-fill {
+  width: 100%;
+  height: 100%;
+  background: oklch(0.55 0.005 100);
+  transform-origin: top;
+  animation: scroll-pulse 2.4s cubic-bezier(0.19, 1, 0.22, 1) infinite;
+}
+
+@keyframes scroll-pulse {
+  0% {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+
+  30% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: scaleY(1);
+    opacity: 0;
+  }
+}
+
+/* ── Landing Grain ── */
+.landing-grain {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0.04;
+  mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+/* ── Corner Markers (brutalist detail) ── */
+.landing-corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.landing-corner::before,
+.landing-corner::after {
+  content: '';
+  position: absolute;
+  background: oklch(0.30 0.005 100);
+}
+
+.corner-tl {
+  top: 32px;
+  left: 32px;
+}
+
+.corner-tl::before {
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 100%;
+}
+
+.corner-tl::after {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+}
+
+.corner-tr {
+  top: 32px;
+  right: 32px;
+}
+
+.corner-tr::before {
+  top: 0;
+  right: 0;
+  width: 1px;
+  height: 100%;
+}
+
+.corner-tr::after {
+  top: 0;
+  right: 0;
+  width: 100%;
+  height: 1px;
+}
+
+.corner-bl {
+  bottom: 32px;
+  left: 32px;
+}
+
+.corner-bl::before {
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  height: 100%;
+}
+
+.corner-bl::after {
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+}
+
+.corner-br {
+  bottom: 32px;
+  right: 32px;
+}
+
+.corner-br::before {
+  bottom: 0;
+  right: 0;
+  width: 1px;
+  height: 100%;
+}
+
+.corner-br::after {
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  height: 1px;
+}
+
+/* ── Transition Overlay (dark→interface dark) ── */
+.transition-overlay {
+  position: relative;
+  width: 100%;
+  height: 30vh;
+  background: linear-gradient(to bottom, #080808 0%, #0b0b0f 100%);
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* ── Main Interface Wrapper ── */
+.main-interface {
+  position: relative;
+  z-index: 6;
+}
+
+
+/* ── Mobile Responsive ── */
+@media (max-width: 768px) {
+  .landing-title {
+    font-size: clamp(28px, 10vw, 56px);
+    letter-spacing: 0.12em;
+  }
+
+  .landing-eyebrow,
+  .landing-subtitle {
+    font-size: 8px;
+  }
+
+  .landing-corner {
+    display: none;
+  }
+
+  .scroll-cue {
+    bottom: 32px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-line-fill {
+    animation: none;
+    opacity: 0.4;
+    transform: scaleY(0.5);
+  }
+}
