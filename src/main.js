@@ -1,4 +1,6 @@
-/* VISAGE · Main Entry Point Orchestrates: Loading → Landing → Scroll Reveal → Interface */
+/* VISAGE · Main Entry Point
+   Audio + Visuals start simultaneously — always in sync.
+   Flow: Audio Init → [Autoplay or Entry Gate] → Cinematic Loader (14s) → Landing → Interface */
 
 // Styles
 import './styles/landing.css';
@@ -8,73 +10,73 @@ import { gsap } from 'gsap';
 import { initLandingScene } from './landing/scene.js';
 import { playLandingIntro, initScrollReveal, setLandingScene } from './animations/scroll-reveal.js';
 import { initInterfaceAnimations } from './animations/gsap-controller.js';
+import { initAmbientAudio, attemptAutoplay, startAfterGesture } from './audio/ambient.js';
+import { runCinematicLoader } from './loading/loader.js';
 
-/* ── Loading Screen ── */
-function runLoadingSequence() {
+/* ── Entry Gate (shown only if browser blocks autoplay) ── */
+function showEntryGate() {
   return new Promise((resolve) => {
-    const loader = document.getElementById('loading-screen');
-    if (!loader) { resolve(); return; }
+    const gate = document.createElement('div');
+    gate.className = 'entry-gate';
+    gate.innerHTML = `
+      <div class="entry-gate-ring"></div>
+      <div class="entry-gate-text">Enter Installation</div>
+      <div class="entry-gate-sub">Click to begin</div>
+    `;
+    document.body.appendChild(gate);
 
-    const tl = gsap.timeline({
-      onComplete: () => {
-        // Wipe loader away
-        gsap.to(loader, {
-          clipPath: 'inset(0 0 100% 0)',
-          duration: 0.7,
-          ease: 'power4.inOut',
-          onComplete: () => {
-            loader.remove();
-            resolve();
-          }
-        });
-      }
-    });
+    // Fade in
+    gsap.fromTo(gate, { opacity: 0 }, { opacity: 1, duration: 0.8, ease: 'power2.out' });
 
-    // 1. Wordmark letters reveal
-    tl.to('.loading-wordmark span', {
-      y: 0,
-      opacity: 1,
-      duration: 0.5,
-      stagger: 0.04,
-      ease: 'power3.out'
-    });
+    gate.addEventListener('click', async () => {
+      // Start audio on this user gesture, but schedule it precisely 1.5s in the future
+      await startAfterGesture(1.5);
 
-    // 2. Status text
-    tl.to('.loading-status', {
-      opacity: 1,
-      duration: 0.3,
-      ease: 'none'
-    }, '-=0.2');
-
-    // 3. Progress bar fills
-    tl.to('.loading-bar-fill', {
-      width: '100%',
-      duration: 1.2,
-      ease: 'power2.inOut'
-    }, '-=0.1');
-
-    // 4. Brief hold
-    tl.to({}, { duration: 0.3 });
+      // Dissolve gate over exactly 1.5s
+      gsap.to(gate, {
+        opacity: 0, duration: 1.5, ease: 'power2.inOut',
+        onComplete: () => {
+          gate.remove();
+          // Loader starts exactly as the delayed audio begins
+          resolve();
+        }
+      });
+    }, { once: true });
   });
 }
 
 /* ── Boot Sequence ── */
 async function init() {
-  // Phase 1: Loading screen
-  await runLoadingSequence();
+  // Phase 0: Pre-fetch audio buffer immediately
+  initAmbientAudio();
 
-  // Phase 2: Start Three.js landing scene
+  // Phase 1: Attempt true autoplay via Web Audio API
+  const result = await attemptAutoplay();
+
+  if (result === 'blocked') {
+    // Browser blocked — show premium entry gate
+    // Hide the loading screen behind the gate
+    await showEntryGate();
+  }
+  // result === 'autoplay' → audio already playing
+  // result === 'muted' → user chose mute, proceed silently
+
+  // Phase 2: Start Three.js landing scene in the background
+  // This ensures WebGL is fully compiled and ready before the loader fades out
   const canvas = document.getElementById('landing-canvas');
   const scene = initLandingScene(canvas);
   setLandingScene(scene);
 
-  // Phase 3: Play the landing intro animation
+  // Phase 3: Run 14-second cinematic loading (now in sync with audio)
+  await runCinematicLoader();
+
+  // Phase 4: Play the landing intro animation exactly at the 14s mark
   playLandingIntro();
 
-  // Phase 4: Set up scroll-driven transitions
+  // Phase 5: Set up scroll-driven transitions
   initScrollReveal();
 
-  // Phase 5: Initialize interface animations
+  // Phase 6: Initialize interface animations
   initInterfaceAnimations();
 }
 
