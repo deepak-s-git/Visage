@@ -4,6 +4,7 @@
    ═══════════════════════════════════════════════════════════════ */
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { setLandingActive } from '../audio/ambient.js';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -77,7 +78,7 @@ export function initScrollReveal() {
     opacity: 0, scale: 1.08, duration: 1, ease: 'none'
   }, 0.3);
 
-  // Feed scroll progress to Three.js scene
+  // Feed scroll progress to Three.js scene + audio
   ScrollTrigger.create({
     trigger: '.landing',
     start: 'top top',
@@ -85,7 +86,11 @@ export function initScrollReveal() {
     scrub: true,
     onUpdate: (self) => {
       if (landingScene) landingScene.setScrollProgress(self.progress);
-    }
+    },
+    onEnter: () => setLandingActive(true),
+    onEnterBack: () => setLandingActive(true),
+    onLeave: () => setLandingActive(false),
+    onLeaveBack: () => setLandingActive(true)
   });
 
   // Main interface reveal
