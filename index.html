@@ -26,16 +26,39 @@
 
 <body>
 
-  <!-- LOADING SCREEN -->
-
+  <!-- CINEMATIC LOADING SEQUENCE -->
   <div class="loading-screen" id="loading-screen">
-    <div class="loading-wordmark" aria-hidden="true">
-      <span>V</span><span>i</span><span>s</span><span>a</span><span>g</span><span>e</span><span>.</span><span>o</span><span>b</span><span>j</span>
+    <canvas class="loader-particles" id="loader-particles"></canvas>
+    <div class="loader-grain"></div>
+    <div class="loader-scanline"></div>
+    <div class="loader-vignette"></div>
+
+    <!-- Phase 1: System awakening -->
+    <div class="loader-phase phase-boot" id="phase-boot">
+      <div class="boot-line">SYS.AFFECTIVE_MODULE</div>
+      <div class="boot-line">INIT SEQUENCE v3.1</div>
+      <div class="boot-line">CALIBRATING NEURAL MESH…</div>
     </div>
-    <div class="loading-bar-track">
-      <div class="loading-bar-fill"></div>
+
+    <!-- Phase 2: Main wordmark -->
+    <div class="loader-hero" id="loader-hero">
+      <div class="loader-eyebrow" id="loader-eyebrow">Installation 03</div>
+      <div class="loader-wordmark" id="loader-wordmark">
+        <span>V</span><span>i</span><span>s</span><span>a</span><span>g</span><span>e</span><span class="loader-dot">.</span><span>o</span><span>b</span><span>j</span>
+      </div>
+      <div class="loader-tagline" id="loader-tagline">Affective Computing Module</div>
     </div>
-    <div class="loading-status">Initialising Affective Module</div>
+
+    <!-- Phase 3: Status evolution -->
+    <div class="loader-status-wrap" id="loader-status-wrap">
+      <div class="loader-status" id="loader-status">Initialising</div>
+      <div class="loader-progress-num" id="loader-progress-num">0</div>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="loader-bar" id="loader-bar">
+      <div class="loader-bar-fill" id="loader-bar-fill"></div>
+    </div>
   </div>
 
 
