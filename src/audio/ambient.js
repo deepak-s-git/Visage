@@ -17,7 +17,7 @@ let audioBuffer = null;
 let isMuted = false;
 let isInLanding = true;
 let isPlaying = false;
-let startTime = 0;       // AudioContext time when playback began
+let startTime = 0;      // AudioContext time when playback began
 let pauseOffset = 0;     // Seconds into track when paused
 
 let fetchPromise = null;
