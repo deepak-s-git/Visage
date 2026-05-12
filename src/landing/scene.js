@@ -115,6 +115,7 @@ const vertexShader = `
   uniform float uTime;
   uniform float uScroll;
   uniform float uMouseIntensity;
+  uniform float uArousal;
   
   varying vec2 vUv;
   varying vec3 vNormal;
@@ -125,10 +126,16 @@ const vertexShader = `
     vUv = uv;
     vNormal = normalize(normalMatrix * normal);
     
-    // Smooth, slow fluid noise for the base
-    float noiseFreq = 1.2;
-    float noiseAmp = 0.35 + (uMouseIntensity * 0.15); // React to mouse movement
-    vec3 noisePos = vec3(position.x * noiseFreq + uTime * 0.2, position.y * noiseFreq + uTime * 0.3, position.z * noiseFreq);
+    // Smooth fluid noise
+    // High arousal = faster, more erratic, spikier waves
+    float noiseFreq = 1.2 + (uArousal * 0.8);
+    float noiseAmp = 0.35 + (uMouseIntensity * 0.15) + (uArousal * 0.25);
+    
+    vec3 noisePos = vec3(
+      position.x * noiseFreq + uTime * (0.2 + uArousal * 0.3), 
+      position.y * noiseFreq + uTime * (0.3 + uArousal * 0.3), 
+      position.z * noiseFreq
+    );
     float n = snoise(noisePos);
     vNoise = n;
     
@@ -149,11 +156,18 @@ const fragmentShader = `
   uniform vec3 uColor2;
   uniform float uTime;
   uniform float uScroll;
+  uniform float uValence;
 
   varying vec2 vUv;
   varying vec3 vNormal;
   varying vec3 vViewPosition;
   varying float vNoise;
+
+  // HSL to RGB conversion helper
+  vec3 hsl2rgb(vec3 c) {
+      vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0, 0.0, 1.0);
+      return c.z + c.y * (rgb-0.5)*(1.0-abs(2.0*c.z-1.0));
+  }
 
   void main() {
     vec3 normal = normalize(vNormal);
@@ -164,11 +178,19 @@ const fragmentShader = `
     fresnel = clamp(1.0 - fresnel, 0.0, 1.0);
     fresnel = pow(fresnel, 3.0);
     
+    // Valence controls the hue shift.
+    // Base colors are deep blue. Valence < 0 shifts to purple/red. Valence > 0 shifts to bright cyan/yellow.
+    vec3 col1 = mix(uColor1, vec3(0.8, 0.1, 0.2), clamp(-uValence, 0.0, 1.0)); // Negative valence
+    col1 = mix(col1, vec3(0.1, 0.8, 0.6), clamp(uValence, 0.0, 1.0)); // Positive valence
+    
+    vec3 col2 = mix(uColor2, vec3(0.4, 0.0, 0.3), clamp(-uValence, 0.0, 1.0));
+    col2 = mix(col2, vec3(0.9, 0.8, 0.2), clamp(uValence, 0.0, 1.0));
+
     // Base color gradient influenced by noise
-    vec3 baseColor = mix(uColor1, uColor2, vNoise * 0.5 + 0.5);
+    vec3 baseColor = mix(col1, col2, vNoise * 0.5 + 0.5);
     
     // Inner glow / rim light
-    vec3 rimColor = vec3(0.5, 0.8, 1.0) * fresnel * 1.5;
+    vec3 rimColor = vec3(0.5, 0.8, 1.0) * fresnel * (1.5 + abs(uValence));
     
     // Final output combining base, fresnel, and fading on scroll
     vec3 finalColor = baseColor + rimColor;
@@ -204,6 +226,8 @@ export function initLandingScene(canvas) {
     uTime: { value: 0 },
     uScroll: { value: 0 },
     uMouseIntensity: { value: 0 },
+    uValence: { value: 0 },
+    uArousal: { value: 0 },
     uColor1: { value: new THREE.Color(0x0a0a0f) }, // Deep dark void
     uColor2: { value: new THREE.Color(0x1a2b4c) }  // Neural blue tint
   };
@@ -218,8 +242,8 @@ export function initLandingScene(canvas) {
   });
 
   /* ── Core Geometry ── */
-  // High segment count for smooth liquid displacement
-  const coreGeo = new THREE.IcosahedronGeometry(1.5, 32);
+  // Higher segment count for an impossibly smooth, organic membrane
+  const coreGeo = new THREE.IcosahedronGeometry(1.6, 48);
   const coreMesh = new THREE.Mesh(coreGeo, coreMat);
   scene.add(coreMesh);
 
@@ -230,12 +254,12 @@ export function initLandingScene(canvas) {
       uniform float uScroll;
       varying float vNoise;
       void main() {
-        // Cyan-ish wireframe overlay
-        vec3 color = mix(vec3(0.1, 0.3, 0.5), vec3(0.4, 0.8, 1.0), vNoise * 0.5 + 0.5);
-        gl_FragColor = vec4(color, 0.15 - (uScroll * 0.15));
+        // High-contrast cyan/blue neural energy
+        vec3 color = mix(vec3(0.0, 0.2, 0.4), vec3(0.6, 0.9, 1.0), vNoise * 0.5 + 0.5);
+        gl_FragColor = vec4(color, 0.25 - (uScroll * 0.2));
       }
     `,
-    uniforms: coreUniforms, // Share uniforms so it displaces identically
+    uniforms: coreUniforms,
     transparent: true,
     wireframe: true,
     blending: THREE.AdditiveBlending
@@ -243,28 +267,116 @@ export function initLandingScene(canvas) {
   
   // Slightly scaled up so the wireframe hovers over the liquid
   const wireMesh = new THREE.Mesh(coreGeo, wireMat);
-  wireMesh.scale.setScalar(1.02);
+  wireMesh.scale.setScalar(1.03);
   scene.add(wireMesh);
 
-  /* ── Particle Field (Atmosphere) ── */
-  const PARTICLE_COUNT = 3000;
-  const posArr = new Float32Array(PARTICLE_COUNT * 3);
-  for (let i = 0; i < PARTICLE_COUNT * 3; i++) {
-    const x = (Math.random() - 0.5) * 30;
-    const y = (Math.random() - 0.5) * 30;
-    const z = (Math.random() - 0.5) * 20 - 5;
-    posArr[i] = x;
-    posArr[i+1] = y;
-    posArr[i+2] = z;
+  /* ── Outer Resonance Aura (Atmospheric light wrapping) ── */
+  const auraMat = new THREE.ShaderMaterial({
+    uniforms: coreUniforms,
+    vertexShader: `
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      void main() {
+        vUv = uv;
+        vNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float uTime;
+      uniform float uValence;
+      uniform float uArousal;
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      
+      void main() {
+        // Soft glow based on normal falloff
+        float intensity = pow(1.0 - abs(dot(vNormal, vec3(0,0,1))), 2.0);
+        
+        // Base nebula color (deep space blue)
+        vec3 color = vec3(0.05, 0.1, 0.25);
+        
+        // React to valence (red/purple for negative, cyan/green for positive)
+        color = mix(color, vec3(0.4, 0.05, 0.2), clamp(-uValence, 0.0, 1.0));
+        color = mix(color, vec3(0.05, 0.35, 0.25), clamp(uValence, 0.0, 1.0));
+        
+        // Add a slow pulse
+        float pulse = sin(uTime * 0.5) * 0.1 + 0.9;
+        
+        gl_FragColor = vec4(color * pulse * intensity, intensity * 0.3);
+      }
+    `,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    side: THREE.BackSide
+  });
+  const auraMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(2.8, 16), auraMat);
+  scene.add(auraMesh);
+
+  /* ── Distant Star Field ── */
+  const STAR_COUNT = 4000;
+  const starPosArr = new Float32Array(STAR_COUNT * 3);
+  const starColorsArr = new Float32Array(STAR_COUNT * 3);
+  for (let i = 0; i < STAR_COUNT; i++) {
+    const x = (Math.random() - 0.5) * 60;
+    const y = (Math.random() - 0.5) * 60;
+    const z = (Math.random() - 0.5) * 40 - 10;
+    starPosArr[i*3] = x; starPosArr[i*3+1] = y; starPosArr[i*3+2] = z;
+    
+    // Slight color variations
+    const col = new THREE.Color().setHSL(0.6 + Math.random() * 0.1, 0.8, 0.6 + Math.random()*0.4);
+    starColorsArr[i*3] = col.r; starColorsArr[i*3+1] = col.g; starColorsArr[i*3+2] = col.b;
   }
-  const particleGeo = new THREE.BufferGeometry();
-  particleGeo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
-  const particleMat = new THREE.PointsMaterial({
-    color: 0x4a7a9c, size: 0.015, transparent: true, opacity: 0.3,
+  const starGeo = new THREE.BufferGeometry();
+  starGeo.setAttribute('position', new THREE.BufferAttribute(starPosArr, 3));
+  starGeo.setAttribute('color', new THREE.BufferAttribute(starColorsArr, 3));
+  const starMat = new THREE.PointsMaterial({
+    size: 0.04, transparent: true, opacity: 0.8,
+    vertexColors: true, sizeAttenuation: true, blending: THREE.AdditiveBlending
+  });
+  const stars = new THREE.Points(starGeo, starMat);
+  scene.add(stars);
+
+  /* ── Falling Energy Streaks ── */
+  const STREAK_COUNT = 150;
+  const streakPosArr = new Float32Array(STREAK_COUNT * 3);
+  for (let i = 0; i < STREAK_COUNT * 3; i+=3) {
+    streakPosArr[i] = (Math.random() - 0.5) * 20;
+    streakPosArr[i+1] = (Math.random() - 0.5) * 40 + 20;
+    streakPosArr[i+2] = (Math.random() - 0.5) * 10 - 2;
+  }
+  const streakGeo = new THREE.BufferGeometry();
+  streakGeo.setAttribute('position', new THREE.BufferAttribute(streakPosArr, 3));
+  const streakMat = new THREE.PointsMaterial({
+    color: 0x88ccff, size: 0.08, transparent: true, opacity: 0.4,
     sizeAttenuation: true, blending: THREE.AdditiveBlending
   });
-  const particles = new THREE.Points(particleGeo, particleMat);
-  scene.add(particles);
+  const streaks = new THREE.Points(streakGeo, streakMat);
+  scene.add(streaks);
+
+  /* ── Shooting Stars / Meteors ── */
+  const METEOR_COUNT = 6;
+  const meteorPosArr = new Float32Array(METEOR_COUNT * 3);
+  const meteorVelArr = new Float32Array(METEOR_COUNT * 3);
+  
+  // Initialize off-screen
+  for (let i = 0; i < METEOR_COUNT * 3; i++) {
+    meteorPosArr[i] = 999.0;
+    meteorVelArr[i] = 0.0;
+  }
+  
+  const meteorGeo = new THREE.BufferGeometry();
+  meteorGeo.setAttribute('position', new THREE.BufferAttribute(meteorPosArr, 3));
+  const meteorMat = new THREE.PointsMaterial({
+    color: 0xaaccff, // Light blue cinematic tint
+    size: 0.35, // Much larger for visibility
+    transparent: true,
+    opacity: 0.8, // Make them visible!
+    blending: THREE.AdditiveBlending,
+    sizeAttenuation: true
+  });
+  const meteors = new THREE.Points(meteorGeo, meteorMat);
+  scene.add(meteors);
 
   /* ── Mouse Tracking ── */
   const mouse = { x: 0, y: 0, tx: 0, ty: 0, velocity: 0 };
@@ -299,6 +411,8 @@ export function initLandingScene(canvas) {
   /* ── Animation ── */
   let running = true;
   let scrollProgress = 0;
+  let coreScale = 0.0;
+  let targetCoreScale = 0.0;
   const clock = new THREE.Clock();
 
   function animate() {
@@ -306,12 +420,14 @@ export function initLandingScene(canvas) {
     requestAnimationFrame(animate);
     
     const time = clock.getElapsedTime();
-    const delta = clock.getDelta();
 
     // Smooth mouse interpolation
     mouse.x += (mouse.tx - mouse.x) * 0.05;
     mouse.y += (mouse.ty - mouse.y) * 0.05;
     mouse.velocity *= 0.95; // Decay velocity
+
+    // Smooth core reveal
+    coreScale += (targetCoreScale - coreScale) * 0.03;
 
     // Update Uniforms
     coreUniforms.uTime.value = time;
@@ -325,11 +441,52 @@ export function initLandingScene(canvas) {
     wireMesh.rotation.y = coreMesh.rotation.y;
     wireMesh.rotation.x = coreMesh.rotation.x;
 
-    // Particles gentle drift and parallax
-    particles.rotation.y = time * 0.015;
-    particles.rotation.x = time * 0.005;
-    particles.position.x = mouse.x * -1.5;
-    particles.position.y = mouse.y * 1.5;
+    // Apply scale
+    coreMesh.scale.setScalar(coreScale);
+    wireMesh.scale.setScalar(coreScale * 1.03);
+
+    // Aura pulse scaled by reveal
+    auraMesh.scale.setScalar(coreScale * (1.0 + Math.sin(time * 0.5) * 0.05 + mouse.velocity * 0.1));
+    auraMesh.material.opacity = coreScale * (0.15 + Math.sin(time * 0.25) * 0.05 + (1.0 - scrollProgress) * 0.1);
+
+    // Stars depth parallax
+    stars.rotation.y = time * 0.002;
+    stars.rotation.x = time * 0.001;
+    stars.position.x = mouse.x * -2.5;
+    stars.position.y = mouse.y * 2.5;
+
+    // Streaks falling logic
+    const streakPositions = streaks.geometry.attributes.position.array;
+    for (let i = 1; i < STREAK_COUNT * 3; i += 3) {
+      streakPositions[i] -= 0.1; // Fall down
+      if (streakPositions[i] < -20) {
+        streakPositions[i] = 20; // Reset to top
+        streakPositions[i-1] = (Math.random() - 0.5) * 40; // New X
+      }
+    }
+    streaks.geometry.attributes.position.needsUpdate = true;
+    streaks.position.x = mouse.x * -1.0;
+
+    // Shooting Stars / Meteors logic
+    const meteorPositions = meteors.geometry.attributes.position.array;
+    for (let i = 0; i < METEOR_COUNT * 3; i += 3) {
+      if (meteorPositions[i] > 30.0 || meteorPositions[i+1] < -20.0 || meteorPositions[i] === 999.0) {
+        // Launch randomly
+        if (Math.random() < 0.02) {  // Increased frequency (approx every 2-3 seconds)
+          meteorPositions[i] = (Math.random() - 0.5) * 40.0 - 10.0; // Start left/top
+          meteorPositions[i+1] = 20.0;
+          meteorPositions[i+2] = (Math.random() - 0.5) * 10.0 - 5.0;
+          
+          meteorVelArr[i] = Math.random() * 0.5 + 0.3; // Move right
+          meteorVelArr[i+1] = -(Math.random() * 0.5 + 0.3); // Move down
+        }
+      } else {
+        // Move
+        meteorPositions[i] += meteorVelArr[i];
+        meteorPositions[i+1] += meteorVelArr[i+1];
+      }
+    }
+    meteors.geometry.attributes.position.needsUpdate = true;
 
     // Camera scroll behavior - dive into the scene
     camera.position.z = 6.5 - scrollProgress * 3;
@@ -345,13 +502,21 @@ export function initLandingScene(canvas) {
   /* ── Public API ── */
   return {
     setScrollProgress(p) { scrollProgress = Math.max(0, Math.min(1, p)); },
+    setEmotionState({ valence = 0, arousal = 0 }) {
+      coreUniforms.uValence.value += (valence - coreUniforms.uValence.value) * 0.1;
+      coreUniforms.uArousal.value += (arousal - coreUniforms.uArousal.value) * 0.1;
+    },
+    revealCore() {
+      targetCoreScale = 1.0;
+    },
     dispose() {
       running = false;
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('resize', onResize);
       renderer.dispose();
       coreGeo.dispose(); coreMat.dispose(); wireMat.dispose();
-      particleGeo.dispose(); particleMat.dispose();
+      starGeo.dispose(); starMat.dispose();
+      streakGeo.dispose(); streakMat.dispose();
     }
   };
 }

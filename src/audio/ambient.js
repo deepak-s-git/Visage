@@ -22,6 +22,8 @@ let pauseOffset = 0;     // Seconds into track when paused
 
 let fetchPromise = null;
 
+let filterNode = null;
+
 /* ── Initialise: called at absolute first frame ── */
 export function initAmbientAudio() {
   isMuted = localStorage.getItem(STORAGE_KEY) === 'true';
@@ -44,20 +46,22 @@ export function attemptAutoplay() {
     if (isMuted) { resolve('muted'); return; }
 
     try {
-      // Create AudioContext
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      
       gainNode = audioCtx.createGain();
       gainNode.gain.value = 0;
+      
+      filterNode = audioCtx.createBiquadFilter();
+      filterNode.type = 'lowpass';
+      filterNode.frequency.value = 800; // Muffled atmospheric start
+
+      filterNode.connect(gainNode);
       gainNode.connect(audioCtx.destination);
 
-      // In browsers where autoplay is blocked, state will be 'suspended'.
-      // DO NOT call resume() here, as it may hang the Promise indefinitely.
       if (audioCtx.state === 'running') {
-        // Autoplay works! Decode and play
         await decodeAndPlay();
         resolve('autoplay');
       } else {
-        // Browser blocked — show premium entry gate
         resolve('blocked');
       }
     } catch (e) {
@@ -70,8 +74,15 @@ export function attemptAutoplay() {
 export async function startAfterGesture(delaySeconds = 0) {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
     gainNode = audioCtx.createGain();
     gainNode.gain.value = 0;
+    
+    filterNode = audioCtx.createBiquadFilter();
+    filterNode.type = 'lowpass';
+    filterNode.frequency.value = 800;
+
+    filterNode.connect(gainNode);
     gainNode.connect(audioCtx.destination);
   }
   await audioCtx.resume();
@@ -89,44 +100,42 @@ async function decodeAndPlay(delaySeconds = 0) {
     }
     if (!raw) return;
 
-    // Decode audio data
     audioBuffer = await audioCtx.decodeAudioData(raw.slice(0));
 
-    // Create source
     sourceNode = audioCtx.createBufferSource();
     sourceNode.buffer = audioBuffer;
     sourceNode.loop = true;
-    sourceNode.connect(gainNode);
+    sourceNode.connect(filterNode); // Connect to filter instead of gain
 
-    // Start from offset (0 on first play)
     sourceNode.start(audioCtx.currentTime + delaySeconds, pauseOffset);
     startTime = audioCtx.currentTime + delaySeconds - pauseOffset;
     isPlaying = true;
 
-    // Fade in volume
     gainNode.gain.setValueAtTime(0, audioCtx.currentTime + delaySeconds);
     gainNode.gain.linearRampToValueAtTime(MAX_VOLUME, audioCtx.currentTime + delaySeconds + 3);
   } catch (e) {
-    // Silently fail — experience continues without audio
+    // Silently fail
   }
 }
 
-/* ── Scroll-driven volume control ── */
+/* ── Scroll-driven Audio Intensity Modulation ── */
 export function setLandingActive(active) {
   isInLanding = active;
-  if (!audioCtx || !gainNode || isMuted || !isPlaying) return;
+  if (!audioCtx || !gainNode || !filterNode || isMuted || !isPlaying) return;
 
   const now = audioCtx.currentTime;
-  gainNode.gain.cancelScheduledValues(now);
-  gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+  
+  // Modulate frequency to simulate consciousness waking up
+  filterNode.frequency.cancelScheduledValues(now);
+  filterNode.frequency.setValueAtTime(filterNode.frequency.value, now);
 
   if (active) {
-    // Scrolled back to landing — fade in
+    // Scrolled back to landing — deep, muffled, asleep
     if (audioCtx.state === 'suspended') audioCtx.resume();
-    gainNode.gain.linearRampToValueAtTime(MAX_VOLUME, now + FADE_DURATION);
+    filterNode.frequency.exponentialRampToValueAtTime(800, now + FADE_DURATION);
   } else {
-    // Scrolled to interface — fade out
-    gainNode.gain.linearRampToValueAtTime(0, now + FADE_DURATION);
+    // Scrolled to interface — clear, bright, awake
+    filterNode.frequency.exponentialRampToValueAtTime(20000, now + FADE_DURATION);
   }
 }
 

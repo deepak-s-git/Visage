@@ -27,14 +27,25 @@ function initParticleCanvas() {
   resize();
   window.addEventListener('resize', resize);
 
-  for (let i = 0; i < 80; i++) {
+  for (let i = 0; i < 150; i++) {
     particles.push({
       x: Math.random() * canvasW,
       y: Math.random() * canvasH,
       vx: (Math.random() - 0.5) * 0.3,
       vy: (Math.random() - 0.5) * 0.3,
-      r: Math.random() * 1.2 + 0.3,
+      r: Math.random() * 1.5 + 0.5,
       alpha: Math.random() * 0.3 + 0.05
+    });
+  }
+  // Add giant fog particles for atmospheric depth
+  for (let i = 0; i < 8; i++) {
+    particles.push({
+      x: Math.random() * canvasW,
+      y: Math.random() * canvasH,
+      vx: (Math.random() - 0.5) * 0.1,
+      vy: (Math.random() - 0.5) * 0.1,
+      r: Math.random() * 100 + 100,
+      alpha: Math.random() * 0.02 + 0.005
     });
   }
   drawParticles();
@@ -54,10 +65,12 @@ function drawParticles() {
   for (const p of particles) {
     p.x += p.vx;
     p.y += p.vy;
-    if (p.x < 0) p.x = canvasW;
-    if (p.x > canvasW) p.x = 0;
-    if (p.y < 0) p.y = canvasH;
-    if (p.y > canvasH) p.y = 0;
+    
+    // Wrap around screen with radius awareness
+    if (p.x < -p.r) p.x = canvasW + p.r;
+    if (p.x > canvasW + p.r) p.x = -p.r;
+    if (p.y < -p.r) p.y = canvasH + p.r;
+    if (p.y > canvasH + p.r) p.y = -p.r;
 
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);

@@ -2,6 +2,12 @@
    Audio + Visuals start simultaneously — always in sync.
    Flow: Audio Init → [Autoplay or Entry Gate] → Cinematic Loader (14s) → Landing → Interface */
 
+// Force scroll to top on reload to preserve cinematic experience
+if ('scrollRestoration' in history) {
+  history.scrollRestoration = 'manual';
+}
+window.scrollTo(0, 0);
+
 // Styles
 import './styles/landing.css';
 
@@ -55,25 +61,28 @@ async function init() {
   // Phase 0: Pre-fetch audio buffer immediately
   initAmbientAudio();
 
-  // Phase 1: Attempt true autoplay via Web Audio API
+  // Phase 1: Start Three.js landing scene in the background instantly
+  // This allows the 3D environment to be visible behind the entry gate
+  const canvas = document.getElementById('landing-canvas');
+  const scene = initLandingScene(canvas);
+  setLandingScene(scene);
+  window._visageScene = scene; // Bridge for continuous emotion engine data
+
+  // Phase 2: Attempt true autoplay via Web Audio API
   const result = await attemptAutoplay();
 
   if (result === 'blocked') {
     // Browser blocked — show premium entry gate
-    // Hide the loading screen behind the gate
     await showEntryGate();
   }
   // result === 'autoplay' → audio already playing
   // result === 'muted' → user chose mute, proceed silently
 
-  // Phase 2: Start Three.js landing scene in the background
-  // This ensures WebGL is fully compiled and ready before the loader fades out
-  const canvas = document.getElementById('landing-canvas');
-  const scene = initLandingScene(canvas);
-  setLandingScene(scene);
-
   // Phase 3: Run 14-second cinematic loading (now in sync with audio)
   await runCinematicLoader();
+
+  // Reveal the neural core only now!
+  window._visageScene?.revealCore();
 
   // Phase 4: Play the landing intro animation exactly at the 14s mark
   playLandingIntro();
