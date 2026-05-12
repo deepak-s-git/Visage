@@ -1,59 +1,158 @@
 /* VISAGE · Animation Layer — Dark Cinematic Edition */
 
+/* ── CUSTOM CINEMATIC CURSOR ── */
+body {
+  cursor: none; /* Hide default cursor */
+}
+
+.cursor-core {
+  position: fixed;
+  top: 0; left: 0;
+  width: 6px; height: 6px;
+  background: #ffffff;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 100000;
+  transform: translate(-50%, -50%);
+  transition: width 0.3s, height 0.3s, background 0.3s;
+  mix-blend-mode: exclusion;
+}
+
+.cursor-ring {
+  position: fixed;
+  top: 0; left: 0;
+  width: 40px; height: 40px;
+  border: 1px solid rgba(100, 200, 255, 0.4);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 99999;
+  transform: translate(-50%, -50%);
+  transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), 
+              height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), 
+              border-color 0.4s;
+  mix-blend-mode: screen;
+}
+
+.cursor-flare {
+  position: fixed;
+  top: 0; left: 0;
+  width: 150px; height: 150px;
+  background: radial-gradient(circle, rgba(100, 200, 255, 0.1) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 99998;
+  transform: translate(-50%, -50%);
+  opacity: 0.5;
+  mix-blend-mode: screen;
+}
+
 /* ── ENTRY GATE (autoplay fallback) ── */
 .entry-gate {
   position: fixed;
   inset: 0;
   z-index: 10000;
-  background: #030305;
+  background: #010102;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 28px;
   cursor: pointer;
+  overflow: hidden;
+}
+
+.entry-gate::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 0%, #010102 70%);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .entry-gate-ring {
-  width: 80px;
-  height: 80px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120vw;
+  height: 120vw;
+  max-width: 1200px;
+  max-height: 1200px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(100, 200, 255, 0.03);
+  box-shadow: inset 0 0 100px rgba(100, 200, 255, 0.02);
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: gate-breathe 3s ease-in-out infinite;
+  animation: gate-pulse 6s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+  z-index: 0;
 }
 
 .entry-gate-ring::before {
   content: '';
-  width: 44px;
-  height: 44px;
+  position: absolute;
+  width: 60%;
+  height: 60%;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  animation: gate-breathe 3s ease-in-out infinite 0.3s;
+  border: 1px solid rgba(100, 200, 255, 0.05);
+  animation: gate-pulse 6s cubic-bezier(0.2, 0.8, 0.2, 1) infinite 1.5s;
 }
 
-@keyframes gate-breathe {
-  0%, 100% { transform: scale(1); opacity: 0.6; }
-  50% { transform: scale(1.08); opacity: 1; }
+.entry-gate-ring::after {
+  content: '';
+  position: absolute;
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  border: 1px solid rgba(100, 200, 255, 0.08);
+  box-shadow: 0 0 60px rgba(100, 200, 255, 0.05);
+  animation: gate-pulse 6s cubic-bezier(0.2, 0.8, 0.2, 1) infinite 3s;
+}
+
+@keyframes gate-pulse {
+  0% { transform: translate(-50%, -50%) scale(0.1); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+}
+
+.entry-gate-content {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 40px;
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.entry-gate:hover .entry-gate-content {
+  transform: scale(1.05);
 }
 
 .entry-gate-text {
-  font-family: var(--mono, 'JetBrains Mono', monospace);
-  font-size: 9px;
-  letter-spacing: 0.40em;
+  font-family: var(--sans, 'Inter', sans-serif);
+  font-size: clamp(14px, 2vw, 18px);
+  font-weight: 300;
+  letter-spacing: 0.50em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
 }
 
 .entry-gate-sub {
   font-family: var(--mono, 'JetBrains Mono', monospace);
-  font-size: 7px;
-  letter-spacing: 0.25em;
+  font-size: 9px;
+  letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.15);
-  margin-top: -16px;
+  color: rgba(100, 200, 255, 0.4);
+  position: relative;
+}
+
+.entry-gate-sub::before, .entry-gate-sub::after {
+  content: '·';
+  margin: 0 12px;
+  color: rgba(255, 255, 255, 0.1);
 }
 
 /* ── CINEMATIC LOADING SCREEN ── */
