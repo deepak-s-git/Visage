@@ -265,11 +265,16 @@ function ensureEmotionEngine() {
     emotionProfiles,
     onState: (state) => {
       setAnalysisState(state);
-      if (state === 'awaiting') {
+      if (state === 'awaiting' || state === 'searching') {
         const scan = document.getElementById('scan-line');
         const analysing = document.getElementById('analysing-text');
-        scan.classList.remove('active');
-        analysing.classList.remove('visible');
+        scan?.classList.remove('active');
+        analysing?.classList.remove('visible');
+        
+        // Reset 3D core if no face is found
+        if (window._visageScene && window._visageScene.setEmotionState) {
+          window._visageScene.setEmotionState({ valence: 0, arousal: 0 });
+        }
       }
     },
     onResult: (result) => {
@@ -277,6 +282,14 @@ function ensureEmotionEngine() {
       renderDetectionResult(result);
       setStep(3);
       updateSpotifyTrack(result);
+      
+      // Send real-time emotion telemetry to the WebGL Neural Core
+      if (window._visageScene && window._visageScene.setEmotionState) {
+        window._visageScene.setEmotionState({ 
+          valence: result.valence, 
+          arousal: result.arousal 
+        });
+      }
     },
     onDebug: (payload) => {
       if (debugEnabled) updateDebugPanel(payload);
