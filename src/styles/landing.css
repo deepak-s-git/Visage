@@ -6,7 +6,7 @@
   width: 100%;
   height: 100vh;
   overflow: hidden;
-  background: #080808;
+  background: #010102;
   z-index: 10;
 }
 
@@ -31,12 +31,12 @@
 }
 
 .landing-eyebrow {
-  font-family: var(--mono);
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.45em;
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.50em;
   text-transform: uppercase;
-  color: oklch(0.55 0.005 100);
+  color: rgba(100, 200, 255, 0.6);
   margin-bottom: 24px;
   opacity: 0;
   transform: translateY(12px);
@@ -44,18 +44,19 @@
 
 /* ── Title Typography ── */
 .landing-title {
-  font-family: var(--mono);
-  font-size: clamp(42px, 8vw, 96px);
+  font-family: var(--sans);
+  font-size: clamp(48px, 10vw, 120px);
   font-weight: 300;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
-  color: oklch(0.88 0.008 95);
+  color: #ffffff;
   line-height: 1;
   display: flex;
   align-items: baseline;
   gap: 0;
   opacity: 0;
   transform: translateY(20px);
+  text-shadow: 0 0 80px rgba(255, 255, 255, 0.2);
 }
 
 .title-line {
@@ -255,12 +256,36 @@
   height: 1px;
 }
 
+/* ── System Data Overlays ── */
+.system-data {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  opacity: 0; /* Animated in via GSAP */
+  transform: translateY(10px);
+  pointer-events: none;
+}
+
+.system-data span {
+  font-family: var(--mono);
+  font-size: 8px;
+  color: rgba(255, 255, 255, 0.25);
+  letter-spacing: 0.20em;
+}
+
+.data-tl { top: 40px; left: 40px; }
+.data-tr { top: 40px; right: 40px; text-align: right; }
+.data-bl { bottom: 40px; left: 40px; }
+.data-br { bottom: 40px; right: 40px; text-align: right; }
+
 /* ── Transition Overlay (dark→interface dark) ── */
 .transition-overlay {
   position: relative;
   width: 100%;
-  height: 30vh;
-  background: linear-gradient(to bottom, #080808 0%, #0b0b0f 100%);
+  height: 40vh;
+  background: linear-gradient(to bottom, #010102 0%, transparent 100%);
   z-index: 5;
   pointer-events: none;
 }
