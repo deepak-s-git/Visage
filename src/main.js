@@ -12,6 +12,7 @@ import { playLandingIntro, initScrollReveal, setLandingScene } from './animation
 import { initInterfaceAnimations } from './animations/gsap-controller.js';
 import { initAmbientAudio, attemptAutoplay, startAfterGesture } from './audio/ambient.js';
 import { runCinematicLoader } from './loading/loader.js';
+import { initCustomCursor } from './animations/cursor.js';
 
 /* ── Entry Gate (shown only if browser blocks autoplay) ── */
 function showEntryGate() {
@@ -20,8 +21,10 @@ function showEntryGate() {
     gate.className = 'entry-gate';
     gate.innerHTML = `
       <div class="entry-gate-ring"></div>
-      <div class="entry-gate-text">Enter Installation</div>
-      <div class="entry-gate-sub">Click to begin</div>
+      <div class="entry-gate-content">
+        <div class="entry-gate-text">Enter Installation</div>
+        <div class="entry-gate-sub">Click to begin</div>
+      </div>
     `;
     document.body.appendChild(gate);
 
@@ -47,6 +50,8 @@ function showEntryGate() {
 
 /* ── Boot Sequence ── */
 async function init() {
+  // Phase -1: Init custom cursor instantly
+  initCustomCursor();
   // Phase 0: Pre-fetch audio buffer immediately
   initAmbientAudio();
 

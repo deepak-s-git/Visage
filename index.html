@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Playfair+Display:ital,wght@1,400;1,500&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&family=Playfair+Display:ital,wght@1,400;1,500&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="./src/styles/visage-core.css">
   <link rel="stylesheet" href="./src/styles/visage-obj.css">
@@ -25,6 +25,11 @@
 </head>
 
 <body>
+  
+  <!-- ── CUSTOM CINEMATIC CURSOR ── -->
+  <div id="cursor-core" class="cursor-core"></div>
+  <div id="cursor-ring" class="cursor-ring"></div>
+  <div id="cursor-flare" class="cursor-flare"></div>
 
   <!-- CINEMATIC LOADING SEQUENCE -->
   <div class="loading-screen" id="loading-screen">
@@ -90,6 +95,24 @@
       <div class="scroll-line-track">
         <div class="scroll-line-fill"></div>
       </div>
+    </div>
+    
+    <!-- Floating System Data Overlays -->
+    <div class="system-data data-tl">
+      <span>SYS.01 // NEURAL INIT</span>
+      <span>AFFECTIVE RESONANCE: STABLE</span>
+    </div>
+    <div class="system-data data-tr">
+      <span>FREQ: 432.01 Hz</span>
+      <span>BANDWIDTH: OPTIMAL</span>
+    </div>
+    <div class="system-data data-bl">
+      <span>LATENCY: 12ms</span>
+      <span>CHAMBER: ACTIVE</span>
+    </div>
+    <div class="system-data data-br">
+      <span>MEM.ARRAY [0x7F8]</span>
+      <span>LOGIC: FLUID</span>
     </div>
   </section>
 
