@@ -19,10 +19,15 @@ export function setLandingScene(scene) {
 export function playLandingIntro() {
   const tl = gsap.timeline({ delay: 0.6 });
 
-  // Corner markers fade in
+  // Corner markers fade in (if still present)
   tl.to('.landing-corner', {
     opacity: 1, duration: 0.8, stagger: 0.1, ease: 'power2.out'
   });
+
+  // System Data Overlays
+  tl.to('.system-data', {
+    opacity: 1, y: 0, duration: 0.8, stagger: 0.1, ease: 'power3.out'
+  }, '<0.2');
 
   // Eyebrow
   tl.to('.landing-eyebrow', {
