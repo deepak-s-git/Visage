@@ -46,12 +46,35 @@ body {
   mix-blend-mode: screen;
 }
 
+.cursor-trail {
+  position: fixed;
+  top: 0; left: 0;
+  width: 8px; height: 8px;
+  background: rgba(100, 200, 255, 0.4);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 99997;
+  transform: translate(-50%, -50%);
+  mix-blend-mode: screen;
+  filter: blur(2px);
+}
+
+body.cursor-hidden .cursor-core,
+body.cursor-hidden .cursor-ring,
+body.cursor-hidden .cursor-flare,
+body.cursor-hidden .cursor-trail {
+  opacity: 0 !important;
+  transition: opacity 0.5s ease;
+}
+
 /* ── ENTRY GATE (autoplay fallback) ── */
 .entry-gate {
   position: fixed;
   inset: 0;
   z-index: 10000;
-  background: #010102;
+  background: transparent;
+  backdrop-filter: blur(8px) brightness(0.7);
+  -webkit-backdrop-filter: blur(8px) brightness(0.7);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -64,7 +87,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at center, transparent 0%, #010102 70%);
+  background: radial-gradient(circle at center, transparent 0%, rgba(1, 1, 2, 0.8) 80%);
   pointer-events: none;
   z-index: 1;
 }
@@ -79,8 +102,8 @@ body {
   max-width: 1200px;
   max-height: 1200px;
   border-radius: 50%;
-  border: 1px solid rgba(100, 200, 255, 0.03);
-  box-shadow: inset 0 0 100px rgba(100, 200, 255, 0.02);
+  border: 1px solid rgba(100, 200, 255, 0.05);
+  box-shadow: inset 0 0 150px rgba(100, 200, 255, 0.05);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -160,7 +183,9 @@ body {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: #030305;
+  background: rgba(1, 1, 2, 0.3); /* Lighter to see background stars */
+  backdrop-filter: blur(8px); /* Reduced blur for visibility */
+  -webkit-backdrop-filter: blur(8px);
   overflow: hidden;
 }
 
