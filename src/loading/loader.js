@@ -15,8 +15,10 @@ const STATUS_PHASES = [
 ];
 
 let particles = [];
+let meteors = [];
 let ctx = null;
 let animId = null;
+let meteorTimeout = null;
 let canvasW = 0, canvasH = 0;
 
 /* ── Particle System ── */
@@ -27,28 +29,35 @@ function initParticleCanvas() {
   resize();
   window.addEventListener('resize', resize);
 
-  for (let i = 0; i < 150; i++) {
+  // Tiny glowing stars with parallax
+  for (let i = 0; i < 200; i++) {
     particles.push({
       x: Math.random() * canvasW,
       y: Math.random() * canvasH,
-      vx: (Math.random() - 0.5) * 0.3,
-      vy: (Math.random() - 0.5) * 0.3,
-      r: Math.random() * 1.5 + 0.5,
-      alpha: Math.random() * 0.3 + 0.05
-    });
-  }
-  // Add giant fog particles for atmospheric depth
-  for (let i = 0; i < 8; i++) {
-    particles.push({
-      x: Math.random() * canvasW,
-      y: Math.random() * canvasH,
+      z: Math.random() * 2 + 0.5, // parallax depth
       vx: (Math.random() - 0.5) * 0.1,
       vy: (Math.random() - 0.5) * 0.1,
-      r: Math.random() * 100 + 100,
-      alpha: Math.random() * 0.02 + 0.005
+      r: Math.random() * 0.8 + 0.2, // tiny sizes
+      alpha: Math.random() * 0.5 + 0.1,
+      targetAlpha: Math.random() * 0.5 + 0.1
     });
   }
+
+  spawnMeteor();
   drawParticles();
+}
+
+function spawnMeteor() {
+  if (Math.random() < 0.6) { // spawn chance
+    meteors.push({
+      x: Math.random() * canvasW + canvasW * 0.2, // mostly right side
+      y: Math.random() * -canvasH * 0.3, // top
+      vx: -15 - Math.random() * 10, // diagonal down-left
+      vy: 15 + Math.random() * 10,
+      life: 1.0
+    });
+  }
+  meteorTimeout = setTimeout(spawnMeteor, 2000 + Math.random() * 2000); // every 2-4s
 }
 
 function resize() {
@@ -62,11 +71,18 @@ function drawParticles() {
   if (!ctx) return;
   ctx.clearRect(0, 0, canvasW, canvasH);
 
+  // Draw Stars
   for (const p of particles) {
-    p.x += p.vx;
-    p.y += p.vy;
+    p.x += p.vx / p.z;
+    p.y += p.vy / p.z;
     
-    // Wrap around screen with radius awareness
+    // Soft opacity flicker
+    p.alpha += (p.targetAlpha - p.alpha) * 0.05;
+    if (Math.abs(p.targetAlpha - p.alpha) < 0.05) {
+      p.targetAlpha = Math.random() * 0.6 + 0.1;
+    }
+
+    // Wrap around screen
     if (p.x < -p.r) p.x = canvasW + p.r;
     if (p.x > canvasW + p.r) p.x = -p.r;
     if (p.y < -p.r) p.y = canvasH + p.r;
@@ -74,14 +90,46 @@ function drawParticles() {
 
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(200, 200, 210, ${p.alpha})`;
+    ctx.fillStyle = `rgba(180, 210, 255, ${p.alpha})`; // subtle blue nebula haze tint
     ctx.fill();
   }
+
+  // Draw Meteors
+  for (let i = meteors.length - 1; i >= 0; i--) {
+    const m = meteors[i];
+    m.x += m.vx;
+    m.y += m.vy;
+    m.life -= 0.02; // fast cinematic fade
+
+    if (m.life <= 0) {
+      meteors.splice(i, 1);
+      continue;
+    }
+
+    const grad = ctx.createLinearGradient(m.x, m.y, m.x - m.vx * 4, m.y - m.vy * 4);
+    grad.addColorStop(0, `rgba(180, 220, 255, ${m.life * 0.8})`);
+    grad.addColorStop(1, 'rgba(180, 220, 255, 0)');
+
+    ctx.beginPath();
+    ctx.moveTo(m.x, m.y);
+    ctx.lineTo(m.x - m.vx * 4, m.y - m.vy * 4);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = grad;
+    ctx.stroke();
+    
+    // Meteor head glow
+    ctx.beginPath();
+    ctx.arc(m.x, m.y, 1.2, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 255, ${m.life})`;
+    ctx.fill();
+  }
+
   animId = requestAnimationFrame(drawParticles);
 }
 
 function stopParticles() {
   if (animId) cancelAnimationFrame(animId);
+  if (meteorTimeout) clearTimeout(meteorTimeout);
   window.removeEventListener('resize', resize);
 }
 

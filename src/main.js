@@ -9,15 +9,18 @@ if ('scrollRestoration' in history) {
 window.scrollTo(0, 0);
 
 // Styles
+import './styles/visage-core.css';
+import './styles/visage-obj.css';
+import './styles/visage-anim.css';
 import './styles/landing.css';
 
-// Modules
 import { gsap } from 'gsap';
-import { initLandingScene } from './landing/scene.js';
-import { playLandingIntro, initScrollReveal, setLandingScene } from './animations/scroll-reveal.js';
-import { initInterfaceAnimations } from './animations/gsap-controller.js';
-import { initAmbientAudio, attemptAutoplay, startAfterGesture } from './audio/ambient.js';
+import { attemptAutoplay, startAfterGesture, initAmbientAudio } from './audio/ambient.js';
 import { runCinematicLoader } from './loading/loader.js';
+import { initLandingScene } from './landing/scene.js';
+import { initKineticGrid } from './landing/kinetic-grid.js';
+import { initScrollReveal, playLandingIntro, setLandingScene } from './animations/scroll-reveal.js';
+import { initInterfaceAnimations } from './animations/gsap-controller.js';
 import { initCustomCursor } from './animations/cursor.js';
 
 /* ── Entry Gate (shown only if browser blocks autoplay) ── */
@@ -61,12 +64,15 @@ async function init() {
   // Phase 0: Pre-fetch audio buffer immediately
   initAmbientAudio();
 
-  // Phase 1: Start Three.js landing scene in the background instantly
+  // Phase 1: Start Three.js landing scene and Kinetic Grid in the background instantly
   // This allows the 3D environment to be visible behind the entry gate
   const canvas = document.getElementById('landing-canvas');
   const scene = initLandingScene(canvas);
   setLandingScene(scene);
   window._visageScene = scene; // Bridge for continuous emotion engine data
+  
+  const gridAPI = initKineticGrid('kinetic-grid-canvas');
+  window._visageGrid = gridAPI;
 
   // Phase 2: Attempt true autoplay via Web Audio API
   const result = await attemptAutoplay();
