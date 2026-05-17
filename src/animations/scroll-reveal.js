@@ -4,7 +4,7 @@
    ═══════════════════════════════════════════════════════════════ */
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { setLandingActive } from '../audio/ambient.js';
+import { setLandingActive, setAudioScrollProgress } from '../audio/ambient.js';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -58,9 +58,9 @@ export function playLandingIntro() {
   return tl;
 }
 
-/** Set up scroll-driven transitions from landing → main interface */
+/** Set up scroll-driven transitions from landing → story journey */
 export function initScrollReveal() {
-  // Landing exit: fade out content + fade in interface OVER it
+  // 1. Landing content fades out on scroll
   const landingTl = gsap.timeline({
     scrollTrigger: {
       trigger: '.landing',
@@ -68,11 +68,11 @@ export function initScrollReveal() {
       end: '+=100%',
       scrub: 0.5,
       pin: true,
-      pinSpacing: true // Adds scroll distance
+      pinSpacing: true
     }
   });
 
-  landingTl.to('.landing-content', {
+  landingTl.to('.landing-content, .system-data', {
     opacity: 0, y: -60, duration: 0.5, ease: 'none'
   }, 0)
   .to('.scroll-cue', {
@@ -82,8 +82,92 @@ export function initScrollReveal() {
     opacity: 0, duration: 0.5, ease: 'none'
   }, 0);
 
-  // Materialize the fixed interface as we scroll
-  landingTl.fromTo('.main-interface', {
+  // 2. Story Blocks reveal
+  gsap.utils.toArray('.story-block').forEach((block, i) => {
+    gsap.to(block, {
+      scrollTrigger: {
+        trigger: block,
+        start: 'top 85%',
+        end: 'top 50%',
+        scrub: 1
+      },
+      opacity: 1,
+      y: 0,
+      ease: 'power2.out'
+    });
+  });
+
+  // 3. Orb Gateway reveal
+  gsap.to('.gateway-content', {
+    scrollTrigger: {
+      trigger: '.orb-gateway',
+      start: 'top 80%',
+      end: 'top 50%',
+      scrub: 1
+    },
+    opacity: 1,
+    ease: 'power2.out'
+  });
+
+  // 4. Feed scroll progress to Three.js scene + audio over the entire experience
+  ScrollTrigger.create({
+    trigger: '.experience-scroll-container',
+    start: 'top top',
+    end: 'bottom bottom',
+    scrub: true,
+    onUpdate: (self) => {
+      // self.progress goes 0 to 1 over the whole journey
+      if (landingScene) landingScene.setScrollProgress(self.progress);
+      setAudioScrollProgress(self.progress); // Interpolate audio
+    },
+    onEnter: () => setLandingActive(true),
+    onEnterBack: () => setLandingActive(true)
+  });
+
+  // 5. Setup Blackhole Transition Button
+  const collapseBtn = document.getElementById('collapse-btn');
+  if (collapseBtn) {
+    collapseBtn.addEventListener('click', triggerBlackholeCollapse);
+  }
+}
+
+/** The Final Transition: Blackhole Collapse to Interface */
+function triggerBlackholeCollapse() {
+  // Prevent double clicking
+  const btn = document.getElementById('collapse-btn');
+  if(btn) btn.style.pointerEvents = 'none';
+
+  // 1. Audio distortion
+  setAudioScrollProgress(1.2); // Push filter to max, or add specific logic in ambient.js
+
+  // 2. Scene blackhole (tell Three.js to suck everything in)
+  if (landingScene && landingScene.triggerBlackhole) {
+    landingScene.triggerBlackhole();
+  }
+
+  // 3. DOM transition timeline
+  const tl = gsap.timeline();
+
+  // Lock scrolling so the user can't break the cinematic sequence
+  document.body.style.overflow = 'hidden';
+  
+  // Disable all active ScrollTriggers to freeze the scroll progress
+  ScrollTrigger.getAll().forEach(st => st.disable());
+
+  // Hide the scroll container immediately (fading out)
+  tl.to('.experience-scroll-container', {
+    opacity: 0,
+    duration: 1.5,
+    scale: 0.95,
+    ease: 'power4.inOut',
+    onComplete: () => {
+      document.querySelector('.experience-scroll-container').style.display = 'none';
+      window.scrollTo(0, 0); // Reset scroll position safely
+    }
+  }, 0);
+
+  // Bring in the main interface after the cinematic delay
+  tl.fromTo('.main-interface', {
     opacity: 0,
     background: 'rgba(1, 1, 2, 0)',
     backdropFilter: 'blur(0px)',
@@ -94,35 +178,25 @@ export function initScrollReveal() {
     background: 'rgba(1, 1, 2, 0.5)',
     backdropFilter: 'blur(20px)',
     webkitBackdropFilter: 'blur(20px)',
-    pointerEvents: 'auto', // Enable interaction when visible
-    duration: 1,
-    ease: 'none'
-  }, 0.2);
+    pointerEvents: 'auto',
+    duration: 2,
+    ease: 'power2.out'
+  }, 2.0); // Wait 2 seconds for blackhole effect
 
-  landingTl.to('.shell main > *', {
+  tl.to('.shell main > *', {
     y: 0,
     scale: 1,
-    duration: 0.8,
-    ease: 'power2.out'
-  }, 0.5);
+    duration: 1.2,
+    ease: 'power3.out'
+  }, 2.5);
 
-  landingTl.to('.shell header', {
+  tl.to('.shell header', {
     y: 0,
-    duration: 0.5
-  }, 0.5);
+    duration: 0.8
+  }, 2.5);
 
-  // Feed scroll progress to Three.js scene + audio
-  ScrollTrigger.create({
-    trigger: '.landing',
-    start: 'top top',
-    end: '+=100%',
-    scrub: true,
-    onUpdate: (self) => {
-      if (landingScene) landingScene.setScrollProgress(self.progress);
-    },
-    onEnter: () => setLandingActive(true),
-    onEnterBack: () => setLandingActive(true),
-    onLeave: () => setLandingActive(false),
-    onLeaveBack: () => setLandingActive(true)
-  });
+  // Turn off landing active state for audio
+  setTimeout(() => {
+    setLandingActive(false);
+  }, 2500);
 }

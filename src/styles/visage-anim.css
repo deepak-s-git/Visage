@@ -574,8 +574,9 @@ footer::before {
 /* ── AUDIO TOGGLE ── */
 .audio-toggle {
   position: fixed;
-  bottom: 28px;
+  top: 50%;
   right: 28px;
+  margin-top: -20px;
   z-index: 9997;
   width: 40px;
   height: 40px;
@@ -616,8 +617,9 @@ footer::before {
 
 @media (max-width: 600px) {
   .audio-toggle {
-    bottom: 16px;
+    top: 50%;
     right: 16px;
+    margin-top: -20px;
     width: 36px;
     height: 36px;
   }

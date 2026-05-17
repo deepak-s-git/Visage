@@ -72,54 +72,144 @@
   </div>
 
 
-  <!-- SECTION 1: CINEMATIC LANDING -->
-
-  <section class="landing" id="landing">
+  <!-- ── FIXED BACKGROUND LAYER ── -->
+  <div class="fixed-bg-layer">
     <canvas class="landing-canvas" id="landing-canvas"></canvas>
+    <canvas id="kinetic-grid-canvas"></canvas>
     <div class="landing-grain" aria-hidden="true"></div>
+  </div>
 
-    <!-- Brutalist corner markers -->
-    <div class="landing-corner corner-tl"></div>
-    <div class="landing-corner corner-tr"></div>
-    <div class="landing-corner corner-bl"></div>
-    <div class="landing-corner corner-br"></div>
-
-    <!-- Content -->
-    <div class="landing-content">
-      <div class="landing-eyebrow">Installation 03</div>
-      <h1 class="landing-title">
-        <span class="title-line">Visage</span><span class="title-dot">.</span><span class="title-ext">obj</span>
-      </h1>
-      <p class="landing-subtitle">Affective Computing Module</p>
-      <p class="landing-version">v3.1 · Emotion Interface</p>
-    </div>
-
-    <!-- Scroll cue -->
-    <div class="scroll-cue" id="scroll-cue">
-      <span class="scroll-text">Enter Installation</span>
-      <div class="scroll-line-track">
-        <div class="scroll-line-fill"></div>
-      </div>
-    </div>
+  <!-- ── SCROLLABLE EXPERIENCE CONTAINER ── -->
+  <div class="experience-scroll-container">
     
-    <!-- Floating System Data Overlays -->
-    <div class="system-data data-tl">
-      <span>SYS.01 // NEURAL INIT</span>
-      <span>AFFECTIVE RESONANCE: STABLE</span>
-    </div>
-    <div class="system-data data-tr">
-      <span>FREQ: 432.01 Hz</span>
-      <span>BANDWIDTH: OPTIMAL</span>
-    </div>
-    <div class="system-data data-bl">
-      <span>LATENCY: 12ms</span>
-      <span>CHAMBER: ACTIVE</span>
-    </div>
-    <div class="system-data data-br">
-      <span>MEM.ARRAY [0x7F8]</span>
-      <span>LOGIC: FLUID</span>
-    </div>
-  </section>
+    <!-- SECTION 1: CINEMATIC LANDING -->
+    <section class="landing" id="landing">
+      <!-- Brutalist corner markers -->
+      <div class="landing-corner corner-tl"></div>
+      <div class="landing-corner corner-tr"></div>
+      <div class="landing-corner corner-bl"></div>
+      <div class="landing-corner corner-br"></div>
+
+      <!-- Content -->
+      <div class="landing-content">
+        <div class="landing-eyebrow">Installation 03</div>
+        <h1 class="landing-title" style="position: relative;">
+          <canvas id="text-particles-canvas" style="position: absolute; inset: 0; z-index: 2; pointer-events: auto;"></canvas>
+          <span class="title-line" style="opacity: 0;">Visage</span><span class="title-dot" style="opacity: 0;">.</span><span class="title-ext" style="opacity: 0;">obj</span>
+        </h1>
+        <p class="landing-subtitle">Affective Computing Module</p>
+        <p class="landing-version">v3.1 · Emotion Interface</p>
+      </div>
+
+      <!-- Scroll cue -->
+      <div class="scroll-cue" id="scroll-cue">
+        <span class="scroll-text">Descend</span>
+        <div class="scroll-line-track">
+          <div class="scroll-line-fill"></div>
+        </div>
+      </div>
+      
+      <!-- Floating System Data Overlays -->
+      <div class="system-data data-tl">
+        <span>SYS.01 // NEURAL INIT</span>
+        <span>AFFECTIVE RESONANCE: STABLE</span>
+      </div>
+      <div class="system-data data-tr">
+        <span>FREQ: 432.01 Hz</span>
+        <span>BANDWIDTH: OPTIMAL</span>
+      </div>
+      <div class="system-data data-bl">
+        <span>LATENCY: 12ms</span>
+        <span>CHAMBER: ACTIVE</span>
+      </div>
+      <div class="system-data data-br">
+        <span>MEM.ARRAY [0x7F8]</span>
+        <span>LOGIC: FLUID</span>
+      </div>
+    </section>
+
+    <!-- SECTION 1.5: STORYTELLING JOURNEY -->
+    <section class="story-journey" id="story-journey">
+      
+      <!-- SECTION 1: 3D Split Scroll Cards -->
+      <div class="story-block split-scroll-block" id="story-block-1">
+        <div class="split-left">
+          <span class="card-eyebrow">01 // The Architecture</span>
+          <h2 class="card-title split-title">Dimensional<br>Empathy</h2>
+          <p class="card-desc">Bridging the chasm between human affect and digital resonance. Visage reads the subtle topographies of your expression, translating biological state into high-dimensional data.</p>
+        </div>
+        <div class="split-right">
+          <div class="3d-card-wrap card-1"><div class="glass-panel premium-card"><h3>Facial Topography</h3><p>Mapping 468 precise landmarks using GPU-accelerated WASM inference.</p></div></div>
+          <div class="3d-card-wrap card-2"><div class="glass-panel premium-card"><h3>Blendshape Translation</h3><p>Extracting 52 distinct micro-expressions to form a comprehensive psychological state.</p></div></div>
+          <div class="3d-card-wrap card-3"><div class="glass-panel premium-card"><h3>Valence & Arousal</h3><p>Projecting facial data onto a 2D emotional circumplex model in real-time.</p></div></div>
+          <div class="3d-card-wrap card-4"><div class="glass-panel premium-card"><h3>Neural Rendering</h3><p>Injecting emotion parameters directly into GLSL shaders for environmental reaction.</p></div></div>
+        </div>
+      </div>
+
+      <!-- SECTION 2: Massive Blue Matrix Flow -->
+      <div class="story-block massive-matrix-block" id="story-block-2">
+        <div class="massive-matrix-container">
+          <div class="matrix-column m-c-1"></div>
+          <div class="matrix-column m-c-2"></div>
+          <div class="matrix-column m-c-3"></div>
+          <div class="matrix-column m-c-4"></div>
+          <div class="matrix-column m-c-5"></div>
+        </div>
+        
+        <div class="matrix-info-cards">
+          <div class="info-container i-c-left">
+            <span class="holo-label">Data Stream Alpha</span>
+            <h3>Synaptic Ingestion</h3>
+            <p>Every frame processed transforms raw pixel data into cognitive vectors. The system doesn't just see you; it mathematically understands your presence, streaming telemetry through the blue void.</p>
+          </div>
+          <div class="info-container i-c-right">
+            <span class="holo-label">Data Stream Beta</span>
+            <h3>Vector Collapse</h3>
+            <p>As the matrix flows downward, noise is filtered. Only pure emotional signal remains, crystallizing into the core parameters that drive the surrounding audiovisual engine.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 3: Expanded Aural Synthesis Chamber -->
+      <div class="story-block hyper-tron-block" id="story-block-3">
+        <div class="hyper-tron-grid"></div>
+        <div class="hyper-tron-core">
+          <div class="h-ring h-ring-1"></div>
+          <div class="h-ring h-ring-2"></div>
+          <div class="h-ring h-ring-3"></div>
+          <div class="h-ring h-ring-4"></div>
+        </div>
+        <div class="tron-particles-overlay"></div>
+        
+        <div class="hyper-tron-content">
+          <span class="holo-label pulse">Spotify Audio Engine</span>
+          <h2 class="holo-title massive-holo">Aural Synthesis</h2>
+          <p class="holo-desc">Emotion dictates rhythm. Data streams map directly to Spotify's Web API, dynamically altering audio features, equalizers, and tempos in real-time to match your exact psychological frequency.</p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECTION 1.9: FINAL ORB GATEWAY (Core Awakening) -->
+    <section class="orb-gateway" id="orb-gateway">
+      <!-- Floating cinematic texts -->
+      <div class="drifting-texts">
+        <span class="drift-txt t-1">SIGNAL ACCEPTED</span>
+        <span class="drift-txt t-2">EMOTIONAL RESONANCE ACTIVE</span>
+        <span class="drift-txt t-3">MEMORY TRACE DETECTED</span>
+        <span class="drift-txt t-4">CONSCIOUSNESS LINK STABLE</span>
+        <span class="drift-txt t-5">AFFECTIVE SYNTHESIS INITIALIZED</span>
+      </div>
+
+      <div class="gateway-content">
+        <button class="collapse-btn" id="collapse-btn">
+          <span class="btn-glow"></span>
+          <span class="btn-text">Collapse the Veil</span>
+        </button>
+      </div>
+    </section>
+
+  </div> <!-- End Scrollable Experience Container -->
 
   <!-- SECTION 2: MAIN INTERFACE (existing Visage.obj) -->
   <section class="main-interface" id="main-interface">
