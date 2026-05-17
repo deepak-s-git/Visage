@@ -192,9 +192,11 @@ const fragmentShader = `
     // Inner glow / rim light
     vec3 rimColor = vec3(0.5, 0.8, 1.0) * fresnel * (1.5 + abs(uValence));
     
-    // Final output combining base, fresnel, and fading on scroll
+    // Final output combining base, fresnel
     vec3 finalColor = baseColor + rimColor;
-    float alpha = 0.9 - (uScroll * 0.8);
+    
+    // Core should remain strongly visible during scroll, pulse slightly based on arousal
+    float alpha = 0.85 + (uArousal * 0.1) - (uScroll * 0.1);
     
     gl_FragColor = vec4(finalColor, alpha);
   }
@@ -256,7 +258,7 @@ export function initLandingScene(canvas) {
       void main() {
         // High-contrast cyan/blue neural energy
         vec3 color = mix(vec3(0.0, 0.2, 0.4), vec3(0.6, 0.9, 1.0), vNoise * 0.5 + 0.5);
-        gl_FragColor = vec4(color, 0.25 - (uScroll * 0.2));
+        gl_FragColor = vec4(color, 0.25); // Keeps wireframe visible during scroll
       }
     `,
     uniforms: coreUniforms,
@@ -269,6 +271,43 @@ export function initLandingScene(canvas) {
   const wireMesh = new THREE.Mesh(coreGeo, wireMat);
   wireMesh.scale.setScalar(1.03);
   scene.add(wireMesh);
+
+  /* ── Inner Solid Core (Depth) ── */
+  const innerMat = new THREE.MeshBasicMaterial({ color: 0x010103 });
+  const innerCore = new THREE.Mesh(coreGeo, innerMat);
+  scene.add(innerCore);
+  scene.innerCore = innerCore; // Store reference
+
+  /* ── Core Particle Shell ── */
+  const pGeo = new THREE.BufferGeometry();
+  const pCount = 500;
+  const positions = new Float32Array(pCount * 3);
+  const aOriginal = new Float32Array(pCount * 3);
+  for (let i = 0; i < pCount; i++) {
+    // Random point on sphere
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos((Math.random() * 2) - 1);
+    const r = 2.6; // Slightly outside the core
+    const px = r * Math.sin(phi) * Math.cos(theta);
+    const py = r * Math.sin(phi) * Math.sin(theta);
+    const pz = r * Math.cos(phi);
+    positions[i*3] = px; positions[i*3+1] = py; positions[i*3+2] = pz;
+    aOriginal[i*3] = px; aOriginal[i*3+1] = py; aOriginal[i*3+2] = pz;
+  }
+  pGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  pGeo.setAttribute('aOriginal', new THREE.BufferAttribute(aOriginal, 3));
+  
+  const pMat = new THREE.PointsMaterial({
+    color: 0x64b4ff,
+    size: 0.05,
+    transparent: true,
+    opacity: 0.8,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  });
+  const coreParticles = new THREE.Points(pGeo, pMat);
+  scene.add(coreParticles);
+  scene.coreParticles = coreParticles; // Store reference
 
   /* ── Outer Resonance Aura (Atmospheric light wrapping) ── */
   const auraMat = new THREE.ShaderMaterial({
@@ -337,46 +376,25 @@ export function initLandingScene(canvas) {
   const stars = new THREE.Points(starGeo, starMat);
   scene.add(stars);
 
-  /* ── Falling Energy Streaks ── */
-  const STREAK_COUNT = 150;
-  const streakPosArr = new Float32Array(STREAK_COUNT * 3);
-  for (let i = 0; i < STREAK_COUNT * 3; i+=3) {
-    streakPosArr[i] = (Math.random() - 0.5) * 20;
-    streakPosArr[i+1] = (Math.random() - 0.5) * 40 + 20;
-    streakPosArr[i+2] = (Math.random() - 0.5) * 10 - 2;
+  /* ── Shooting Stars / Meteors (Cinematic Lines) ── */
+  const METEOR_COUNT = 8;
+  const meteorsList = [];
+  for (let i = 0; i < METEOR_COUNT; i++) {
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(6); // 2 points (head and tail)
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const mat = new THREE.LineBasicMaterial({
+      color: 0xe0f0ff,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      linewidth: 2
+    });
+    const line = new THREE.Line(geo, mat);
+    line.userData = { life: 0, vx: 0, vy: 0 };
+    scene.add(line);
+    meteorsList.push(line);
   }
-  const streakGeo = new THREE.BufferGeometry();
-  streakGeo.setAttribute('position', new THREE.BufferAttribute(streakPosArr, 3));
-  const streakMat = new THREE.PointsMaterial({
-    color: 0x88ccff, size: 0.08, transparent: true, opacity: 0.4,
-    sizeAttenuation: true, blending: THREE.AdditiveBlending
-  });
-  const streaks = new THREE.Points(streakGeo, streakMat);
-  scene.add(streaks);
-
-  /* ── Shooting Stars / Meteors ── */
-  const METEOR_COUNT = 6;
-  const meteorPosArr = new Float32Array(METEOR_COUNT * 3);
-  const meteorVelArr = new Float32Array(METEOR_COUNT * 3);
-  
-  // Initialize off-screen
-  for (let i = 0; i < METEOR_COUNT * 3; i++) {
-    meteorPosArr[i] = 999.0;
-    meteorVelArr[i] = 0.0;
-  }
-  
-  const meteorGeo = new THREE.BufferGeometry();
-  meteorGeo.setAttribute('position', new THREE.BufferAttribute(meteorPosArr, 3));
-  const meteorMat = new THREE.PointsMaterial({
-    color: 0xaaccff, // Light blue cinematic tint
-    size: 0.35, // Much larger for visibility
-    transparent: true,
-    opacity: 0.8, // Make them visible!
-    blending: THREE.AdditiveBlending,
-    sizeAttenuation: true
-  });
-  const meteors = new THREE.Points(meteorGeo, meteorMat);
-  scene.add(meteors);
 
   /* ── Mouse Tracking ── */
   const mouse = { x: 0, y: 0, tx: 0, ty: 0, velocity: 0 };
@@ -412,7 +430,9 @@ export function initLandingScene(canvas) {
   let running = true;
   let scrollProgress = 0;
   let coreScale = 0.0;
-  let targetCoreScale = 0.0;
+  let targetCoreScale = 0.0; // Wait for revealCore()
+  let isBlackhole = false;
+  let blackholeProgress = 0;
   const clock = new THREE.Clock();
 
   function animate() {
@@ -441,13 +461,37 @@ export function initLandingScene(canvas) {
     wireMesh.rotation.y = coreMesh.rotation.y;
     wireMesh.rotation.x = coreMesh.rotation.x;
 
-    // Apply scale
-    coreMesh.scale.setScalar(coreScale);
-    wireMesh.scale.setScalar(coreScale * 1.03);
+    // Apply scale: Core stays relatively stable during scroll, only small pulse
+    const dynamicScale = coreScale * 1.0; // Removed massive growth
+    
+    coreMesh.scale.setScalar(dynamicScale);
+    wireMesh.scale.setScalar(dynamicScale * 1.05);
 
-    // Aura pulse scaled by reveal
-    auraMesh.scale.setScalar(coreScale * (1.0 + Math.sin(time * 0.5) * 0.05 + mouse.velocity * 0.1));
-    auraMesh.material.opacity = coreScale * (0.15 + Math.sin(time * 0.25) * 0.05 + (1.0 - scrollProgress) * 0.1);
+    // If inner core and particle shell exist, update them
+    if (scene.innerCore) {
+      scene.innerCore.rotation.y = -time * 0.1;
+      scene.innerCore.rotation.x = -time * 0.1;
+      scene.innerCore.scale.setScalar(dynamicScale * 0.6);
+    }
+    if (scene.coreParticles) {
+      scene.coreParticles.rotation.y = time * 0.05 + mouse.x * 0.5;
+      scene.coreParticles.rotation.z = time * 0.05;
+      scene.coreParticles.scale.setScalar(dynamicScale * 1.15);
+      // Pulse particles
+      const positions = scene.coreParticles.geometry.attributes.position.array;
+      const original = scene.coreParticles.geometry.attributes.aOriginal.array;
+      for(let i=0; i<positions.length; i+=3) {
+        const offset = Math.sin(time * 3.0 + i) * 0.02 * coreUniforms.uArousal.value;
+        positions[i] = original[i] * (1.0 + offset);
+        positions[i+1] = original[i+1] * (1.0 + offset);
+        positions[i+2] = original[i+2] * (1.0 + offset);
+      }
+      scene.coreParticles.geometry.attributes.position.needsUpdate = true;
+    }
+
+    // Aura pulse
+    auraMesh.scale.setScalar(dynamicScale * (1.0 + Math.sin(time * 0.5) * 0.05 + mouse.velocity * 0.1));
+    auraMesh.material.opacity = coreScale * (0.15 + Math.sin(time * 0.25) * 0.05); // Stable opacity
 
     // Stars depth parallax
     stars.rotation.y = time * 0.002;
@@ -455,45 +499,69 @@ export function initLandingScene(canvas) {
     stars.position.x = mouse.x * -2.5;
     stars.position.y = mouse.y * 2.5;
 
-    // Streaks falling logic
-    const streakPositions = streaks.geometry.attributes.position.array;
-    for (let i = 1; i < STREAK_COUNT * 3; i += 3) {
-      streakPositions[i] -= 0.1; // Fall down
-      if (streakPositions[i] < -20) {
-        streakPositions[i] = 20; // Reset to top
-        streakPositions[i-1] = (Math.random() - 0.5) * 40; // New X
-      }
-    }
-    streaks.geometry.attributes.position.needsUpdate = true;
-    streaks.position.x = mouse.x * -1.0;
-
     // Shooting Stars / Meteors logic
-    const meteorPositions = meteors.geometry.attributes.position.array;
-    for (let i = 0; i < METEOR_COUNT * 3; i += 3) {
-      if (meteorPositions[i] > 30.0 || meteorPositions[i+1] < -20.0 || meteorPositions[i] === 999.0) {
-        // Launch randomly
-        if (Math.random() < 0.02) {  // Increased frequency (approx every 2-3 seconds)
-          meteorPositions[i] = (Math.random() - 0.5) * 40.0 - 10.0; // Start left/top
-          meteorPositions[i+1] = 20.0;
-          meteorPositions[i+2] = (Math.random() - 0.5) * 10.0 - 5.0;
+    for (let i = 0; i < METEOR_COUNT; i++) {
+      const m = meteorsList[i];
+      if (m.userData.life <= 0) {
+        if (Math.random() < 0.015) { // Spawn
+          m.userData.life = 1.0;
+          const x = (Math.random() - 0.5) * 60.0 + 20; // Start mostly top right
+          const y = 30.0 + Math.random() * 15;
+          const z = (Math.random() - 0.5) * 10.0 - 5.0;
           
-          meteorVelArr[i] = Math.random() * 0.5 + 0.3; // Move right
-          meteorVelArr[i+1] = -(Math.random() * 0.5 + 0.3); // Move down
+          const pos = m.geometry.attributes.position.array;
+          pos[0] = x; pos[1] = y; pos[2] = z; // Head
+          pos[3] = x; pos[4] = y; pos[5] = z; // Tail
+          
+          // Fast diagonal travel
+          m.userData.vx = -1.5 - Math.random() * 1.5;
+          m.userData.vy = -1.5 - Math.random() * 1.5;
         }
+        m.material.opacity = 0;
       } else {
-        // Move
-        meteorPositions[i] += meteorVelArr[i];
-        meteorPositions[i+1] += meteorVelArr[i+1];
+        m.userData.life -= 0.02; // Cinematic fast fade
+        const pos = m.geometry.attributes.position.array;
+        
+        // Stretch: Tail follows head but slower
+        pos[3] += (pos[0] - pos[3]) * 0.15;
+        pos[4] += (pos[1] - pos[4]) * 0.15;
+        pos[5] += (pos[2] - pos[5]) * 0.15;
+        
+        // Head moves fast
+        pos[0] += m.userData.vx;
+        pos[1] += m.userData.vy;
+        
+        m.geometry.attributes.position.needsUpdate = true;
+        m.material.opacity = m.userData.life * 0.8;
       }
     }
-    meteors.geometry.attributes.position.needsUpdate = true;
 
     // Camera scroll behavior - dive into the scene
-    camera.position.z = 6.5 - scrollProgress * 3;
-    camera.position.x += (mouse.x * 0.5 - camera.position.x) * 0.05;
-    camera.position.y += (-mouse.y * 0.3 - camera.position.y) * 0.05;
-    camera.lookAt(0, 0, 0);
+    if (!isBlackhole) {
+      camera.position.z = 6.5 - scrollProgress * 3;
+      camera.position.x += (mouse.x * 0.5 - camera.position.x) * 0.05;
+      camera.position.y += (-mouse.y * 0.3 - camera.position.y) * 0.05;
+    } else {
+      // Blackhole collapse animation
+      blackholeProgress += 0.015;
+      
+      // Pull camera inside the core
+      camera.position.z += (0.1 - camera.position.z) * 0.1;
+      
+      // Spin the entire scene crazily
+      scene.rotation.z += blackholeProgress * 0.1;
+      scene.rotation.y += blackholeProgress * 0.05;
+      
+      // Suck stars inward
+      stars.scale.setScalar(Math.max(0.1, 1.0 - blackholeProgress));
+      
+      // Distort the core to engulf everything
+      targetCoreScale = 15.0 + blackholeProgress * 20.0;
+      coreUniforms.uArousal.value = 5.0; // Max chaos
+      coreUniforms.uMouseIntensity.value = 5.0;
+    }
 
+    camera.lookAt(0, 0, 0);
     renderer.render(scene, camera);
   }
 
@@ -503,11 +571,15 @@ export function initLandingScene(canvas) {
   return {
     setScrollProgress(p) { scrollProgress = Math.max(0, Math.min(1, p)); },
     setEmotionState({ valence = 0, arousal = 0 }) {
+      if (isBlackhole) return;
       coreUniforms.uValence.value += (valence - coreUniforms.uValence.value) * 0.1;
       coreUniforms.uArousal.value += (arousal - coreUniforms.uArousal.value) * 0.1;
     },
     revealCore() {
-      targetCoreScale = 1.0;
+      if (!isBlackhole) targetCoreScale = 1.0;
+    },
+    triggerBlackhole() {
+      isBlackhole = true;
     },
     dispose() {
       running = false;
@@ -516,7 +588,10 @@ export function initLandingScene(canvas) {
       renderer.dispose();
       coreGeo.dispose(); coreMat.dispose(); wireMat.dispose();
       starGeo.dispose(); starMat.dispose();
-      streakGeo.dispose(); streakMat.dispose();
+      for (const m of meteorsList) {
+        m.geometry.dispose();
+        m.material.dispose();
+      }
     }
   };
 }

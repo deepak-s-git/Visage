@@ -6,28 +6,22 @@
   width: 100%;
   height: 100vh;
   overflow: hidden;
-  background: #010102;
+  background: transparent;
   z-index: 1; /* Pinned behind the main interface */
-}
-
-.landing-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
 }
 
 /* ── Content Layer ── */
 .landing-content {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 3; /* Increased so it sits above the grid */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   pointer-events: none;
+  /* Cinematic scaling */
+  transform: scale(clamp(0.7, min(1vw, 1vh) * 0.1, 1.2));
 }
 
 .landing-eyebrow {
@@ -37,7 +31,7 @@
   letter-spacing: 0.50em;
   text-transform: uppercase;
   color: rgba(100, 200, 255, 0.6);
-  margin-bottom: 24px;
+  margin-bottom: clamp(16px, 2vh, 24px);
   opacity: 0;
   transform: translateY(12px);
 }
@@ -45,7 +39,7 @@
 /* ── Title Typography ── */
 .landing-title {
   font-family: var(--sans);
-  font-size: clamp(48px, 10vw, 120px);
+  font-size: clamp(40px, 8vw, 110px); /* Tighter scaling to prevent overlap */
   font-weight: 300;
   letter-spacing: 0.10em;
   text-transform: uppercase;
@@ -56,7 +50,8 @@
   gap: 0;
   opacity: 0;
   transform: translateY(20px);
-  text-shadow: 0 0 30px rgba(0, 0, 0, 0.8), 0 0 80px rgba(255, 255, 255, 0.2);
+  text-shadow: 0 0 40px rgba(0, 0, 0, 0.9), 0 0 60px rgba(100, 180, 255, 0.15);
+  white-space: nowrap;
 }
 
 .title-line {
@@ -151,16 +146,330 @@
   }
 }
 
+/* ── FIXED BACKGROUND LAYER ── */
+.fixed-bg-layer {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  overflow: hidden;
+  background-color: var(--c-bg);
+}
+
+.landing-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1; /* Lowest */
+}
+
+#kinetic-grid-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2; /* Over Three.js canvas */
+  pointer-events: none; /* Let mouse go through to Three.js */
+  mix-blend-mode: screen;
+}
+
 /* ── Landing Grain ── */
 .landing-grain {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 4;
   pointer-events: none;
   opacity: 0.04;
   mix-blend-mode: screen;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 200px 200px;
+}
+
+/* ── SCROLLABLE CONTAINER ── */
+.experience-scroll-container {
+  position: relative;
+  width: 100%;
+  z-index: 10;
+}
+
+/* ── STORYTELLING JOURNEY ── */
+.story-journey {
+  position: relative;
+  width: 100%;
+  min-height: 200vh; /* Will be driven by GSAP */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20vh 0;
+  gap: 60vh;
+  z-index: 10;
+}
+
+.story-block {
+  position: relative;
+  width: 100%;
+  max-width: 1400px;
+  min-height: 80vh;
+  padding: 0 var(--space-2xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0; /* GSAP reveals this */
+  transform: translateY(100px);
+}
+
+/* ── 01. Architecture (Parallax Panels) ── */
+.arch-block {
+  perspective: 1000px;
+}
+.arch-layer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.arch-back { transform: translateZ(-200px) scale(1.2); }
+.arch-mid { transform: translateZ(0px); z-index: 2; pointer-events: auto; }
+.arch-front { transform: translateZ(150px) scale(0.85); z-index: 3; pointer-events: auto; justify-content: flex-end; }
+
+.glass-panel {
+  padding: var(--space-2xl);
+  background: rgba(10, 15, 25, 0.4);
+  border: 1px solid rgba(100, 180, 255, 0.15);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(100, 150, 255, 0.05);
+  max-width: 600px;
+  border-radius: 4px;
+}
+.floating-sub-panel {
+  max-width: 450px;
+  margin-top: 20vh;
+  margin-right: 10vw;
+  background: rgba(10, 12, 18, 0.6);
+  border-color: rgba(100, 150, 255, 0.3);
+}
+
+.neural-node {
+  width: 8px; height: 8px;
+  background: #64b4ff;
+  border-radius: 50%;
+  box-shadow: 0 0 15px #64b4ff;
+}
+.neural-line {
+  width: 300px; height: 1px;
+  background: linear-gradient(90deg, #64b4ff, transparent);
+  margin: 0 20px;
+}
+
+/* ── 02. Matrix / Data Streams ── */
+.matrix-block {
+  justify-content: flex-start;
+  padding-left: 10vw;
+}
+.matrix-streams {
+  position: absolute;
+  top: 0; right: 10vw;
+  height: 150%;
+  display: flex;
+  gap: 40px;
+  transform: perspective(600px) rotateX(40deg) rotateY(-20deg);
+  opacity: 0.3;
+  pointer-events: none;
+}
+.stream {
+  color: #1DB954; /* Matrix green / Spotify mix */
+  font-family: monospace;
+  font-size: 14px;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  letter-spacing: 5px;
+  animation: stream-flow 4s linear infinite;
+}
+.delay-1 { animation-delay: 1.2s; }
+.delay-2 { animation-delay: 2.5s; }
+
+@keyframes stream-flow {
+  0% { transform: translateY(-50%); opacity: 0; }
+  50% { opacity: 1; text-shadow: 0 0 10px #1DB954; }
+  100% { transform: translateY(50%); opacity: 0; }
+}
+.matrix-content {
+  z-index: 2;
+  max-width: 550px;
+}
+
+/* ── 03. Tron Audio Chamber ── */
+.tron-block {
+  justify-content: center;
+  text-align: center;
+}
+.tron-rings {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) rotateX(60deg);
+  pointer-events: none;
+  z-index: 0;
+}
+.tron-ring {
+  position: absolute;
+  top: 50%; left: 50%;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+.r-1 { width: 800px; height: 800px; border-top-color: #0ff; animation: spin-r 15s linear infinite; box-shadow: 0 -10px 30px rgba(0, 255, 255, 0.2) inset; }
+.r-2 { width: 600px; height: 600px; border-bottom-color: #1DB954; animation: spin-r 10s linear infinite reverse; }
+.r-3 { width: 400px; height: 400px; border-left-color: #64b4ff; animation: spin-r 8s linear infinite; }
+
+@keyframes spin-r { 100% { transform: translate(-50%, -50%) rotateZ(360deg); } }
+
+.tron-content {
+  z-index: 2;
+  background: rgba(0, 5, 10, 0.7);
+  padding: 40px;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  backdrop-filter: blur(20px);
+  border-radius: 5px;
+  max-width: 600px;
+}
+.holo-label {
+  display: inline-block;
+  padding: 6px 16px;
+  background: rgba(30, 215, 96, 0.15);
+  color: #1DB954;
+  border: 1px solid rgba(30, 215, 96, 0.4);
+  border-radius: 30px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: 20px;
+  box-shadow: 0 0 15px rgba(30, 215, 96, 0.2);
+}
+
+/* ── 04. Interface Evolution ── */
+.evolution-block {
+  justify-content: flex-end;
+  padding-right: 15vw;
+}
+.evo-trace-lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.evo-line {
+  position: absolute;
+  background: rgba(100, 180, 255, 0.5);
+  box-shadow: 0 0 15px rgba(100, 180, 255, 0.5);
+}
+.evo-line.horizontal { top: 50%; left: 0; width: 100%; height: 1px; transform: scaleX(0); transform-origin: left; transition: transform 2s ease; }
+.evo-line.vertical { top: 0; left: 50%; width: 1px; height: 100%; transform: scaleY(0); transform-origin: top; transition: transform 2s ease; }
+.evolution-block:hover .horizontal { transform: scaleX(1); }
+.evolution-block:hover .vertical { transform: scaleY(1); }
+
+.evo-content {
+  max-width: 500px;
+  z-index: 2;
+}
+
+/* ── Typography Helpers ── */
+.card-eyebrow {
+  display: block; font-size: 12px; letter-spacing: 0.3em;
+  color: #64b4ff; text-transform: uppercase; margin-bottom: 20px;
+}
+.card-title, .holo-title {
+  font-size: 3rem; font-weight: 300; color: #fff; margin-bottom: 20px;
+  text-shadow: 0 0 20px rgba(100, 180, 255, 0.3);
+}
+.card-desc, .holo-desc {
+  font-size: 1.1rem; color: rgba(255, 255, 255, 0.6); line-height: 1.8;
+}
+
+/* ── FINAL GATEWAY / CORE AWAKENING ── */
+.orb-gateway {
+  position: relative;
+  width: 100%;
+  height: 120vh; /* Extra room to scroll into it */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  overflow: hidden;
+}
+
+.drifting-texts {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+.drift-txt {
+  position: absolute;
+  color: rgba(255, 255, 255, 0.08);
+  font-size: 4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  animation: cinematic-drift 20s linear infinite alternate;
+}
+.t-1 { top: 20%; left: -10%; animation-duration: 25s; }
+.t-2 { top: 40%; right: -20%; animation-duration: 35s; font-size: 6rem; color: rgba(100, 150, 255, 0.05); }
+.t-3 { top: 70%; left: 10%; animation-duration: 30s; }
+.t-4 { top: 85%; right: 5%; animation-duration: 22s; font-size: 3rem; }
+.t-5 { top: 10%; left: 50%; transform: translateX(-50%); animation-duration: 40s; color: rgba(0, 255, 255, 0.04); font-size: 8rem; }
+
+@keyframes cinematic-drift {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(50px, -50px) scale(1.05); }
+}
+
+.gateway-content {
+  text-align: center;
+  opacity: 0; /* GSAP will reveal */
+  z-index: 5;
+}
+
+.collapse-btn {
+  background: rgba(10, 15, 25, 0.8);
+  border: 1px solid rgba(100, 180, 255, 0.4);
+  color: #fff;
+  padding: 20px 50px;
+  font-size: 14px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 30px rgba(100, 180, 255, 0.2);
+  border-radius: 4px;
+  backdrop-filter: blur(10px);
+}
+
+.btn-glow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(100, 180, 255, 0.5), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.6s ease;
+}
+
+.collapse-btn:hover {
+  background: rgba(100, 180, 255, 0.1);
+  border-color: #fff;
+  box-shadow: 0 0 50px rgba(100, 180, 255, 0.4);
+  transform: scale(1.05);
+}
+
+.collapse-btn:hover .btn-glow {
+  transform: translateX(100%);
 }
 
 /* ── Corner Markers (brutalist detail) ── */
@@ -280,7 +589,7 @@
 .data-tl { top: 48px; left: 48px; }
 .data-tr { top: 48px; right: 48px; text-align: right; }
 .data-bl { bottom: 48px; left: 48px; }
-.data-br { bottom: 90px; right: 48px; text-align: right; } /* Shifted up to avoid volume btn */
+.data-br { bottom: 48px; right: 48px; text-align: right; }
 
 /* ── Transition Overlay (blur mask) ── */
 .transition-overlay {
