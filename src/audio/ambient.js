@@ -119,23 +119,38 @@ async function decodeAndPlay(delaySeconds = 0) {
 }
 
 /* ── Scroll-driven Audio Intensity Modulation ── */
+export function setAudioScrollProgress(progress) {
+  if (!audioCtx || !gainNode || !filterNode || isMuted || !isPlaying) return;
+
+  const now = audioCtx.currentTime;
+
+  // Interpolate volume: full at landing (0 progress), very quiet at interface (1 progress)
+  // We don't mute entirely, just drop it to 15% of max volume to maintain subtle atmosphere
+  const targetVolume = MAX_VOLUME * (1.0 - (progress * 0.85));
+
+  // Interpolate filter: muffled (800Hz) at landing, clear (20000Hz) at interface
+  const minFreq = 800;
+  const maxFreq = 20000;
+  // Clamp progress for safety before pow
+  const safeProgress = Math.max(0, Math.min(1, progress));
+  const targetFreq = minFreq * Math.pow(maxFreq / minFreq, safeProgress);
+
+  gainNode.gain.cancelScheduledValues(now);
+  gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+  gainNode.gain.linearRampToValueAtTime(targetVolume, now + 0.2);
+
+  filterNode.frequency.cancelScheduledValues(now);
+  filterNode.frequency.setValueAtTime(filterNode.frequency.value, now);
+  filterNode.frequency.exponentialRampToValueAtTime(targetFreq, now + 0.2);
+}
+
 export function setLandingActive(active) {
   isInLanding = active;
   if (!audioCtx || !gainNode || !filterNode || isMuted || !isPlaying) return;
 
-  const now = audioCtx.currentTime;
-  
-  // Modulate frequency to simulate consciousness waking up
-  filterNode.frequency.cancelScheduledValues(now);
-  filterNode.frequency.setValueAtTime(filterNode.frequency.value, now);
-
-  if (active) {
-    // Scrolled back to landing — deep, muffled, asleep
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    filterNode.frequency.exponentialRampToValueAtTime(800, now + FADE_DURATION);
-  } else {
-    // Scrolled to interface — clear, bright, awake
-    filterNode.frequency.exponentialRampToValueAtTime(20000, now + FADE_DURATION);
+  // Resume context if needed
+  if (active && audioCtx.state === 'suspended') {
+    audioCtx.resume();
   }
 }
 
