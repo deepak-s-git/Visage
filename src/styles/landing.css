@@ -33,7 +33,6 @@
   color: rgba(255, 255, 255, 0.9);
   margin-bottom: clamp(16px, 2vh, 24px);
   opacity: 0;
-  transform: translateY(12px);
 }
 
 /* ── Title Typography ── */
@@ -49,7 +48,6 @@
   align-items: baseline;
   gap: 0;
   opacity: 0;
-  transform: translateY(20px);
   text-shadow: 0 0 40px rgba(0, 0, 0, 0.9), 0 0 60px rgba(100, 180, 255, 0.15);
   white-space: nowrap;
 }
@@ -78,7 +76,6 @@
   color: rgba(255, 255, 255, 0.7);
   margin-top: 20px;
   opacity: 0;
-  transform: translateY(10px);
 }
 
 /* ── Version Tag ── */
@@ -155,6 +152,7 @@
   z-index: 0;
   overflow: hidden;
   background-color: var(--c-bg);
+  opacity: 0; /* JS will reveal this when the landing intro starts */
 }
 
 .landing-canvas {

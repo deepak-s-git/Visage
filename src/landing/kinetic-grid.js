@@ -11,10 +11,10 @@ export function initKineticGrid(canvasId) {
   let points = [];
   
   // Physics & Wave settings
-  const spring = 0.03;
-  const friction = 0.85;
-  const mouseRadius = 300; // Larger reaction area
-  const baseAlpha = 0.08;
+  const spring = 0.025; // Smoother but tighter return
+  const friction = 0.88; // Reduced gliding so it settles faster
+  const mouseRadius = 300; // Normal reaction area
+  const baseAlpha = 0.12; // Slightly improved base visibility
 
   // Mouse tracking
   const mouse = { x: -1000, y: -1000, vx: 0, vy: 0 };
@@ -159,13 +159,14 @@ export function initKineticGrid(canvasId) {
         
         // Dynamic visibility based on scroll and movement
         const velocity = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-        const dynamicAlpha = (baseAlpha * intensity) + (velocity * 0.02) + (alpha * 0.05);
+        const zScale = 1.0 + (velocity * 0.15); // Moving points appear closer to the camera
+        const dynamicAlpha = (baseAlpha * intensity) + (velocity * 0.03) + (alpha * 0.08);
 
         if (dynamicAlpha > 0.01) {
           // Draw dots
-          ctx.fillStyle = `rgba(100, 180, 255, ${dynamicAlpha * 1.5})`;
+          ctx.fillStyle = `rgba(120, 190, 255, ${Math.min(dynamicAlpha * 1.5, 0.8)})`;
           ctx.beginPath();
-          ctx.arc(p.x, p.y, 1.0 + velocity * 0.1, 0, Math.PI * 2);
+          ctx.arc(p.x, p.y, 1.2 * zScale, 0, Math.PI * 2);
           ctx.fill();
 
           // Connect horizontal

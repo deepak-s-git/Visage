@@ -9,9 +9,9 @@ const STATUS_PHASES = [
   { text: 'Loading Neural Mesh',       at: 2 },
   { text: 'Calibrating Sensors',       at: 4.5 },
   { text: 'Mapping Affect Vectors',    at: 7 },
-  { text: 'Resonance Scan Active',     at: 9 },
-  { text: 'Emotional Core Online',     at: 11.5 },
-  { text: 'System Ready',              at: 13 }
+  { text: 'Resonance Scan Active',     at: 8.5 },
+  { text: 'Emotional Core Online',     at: 10.5 },
+  { text: 'System Ready',              at: 12 }
 ];
 
 let particles = [];
@@ -157,7 +157,7 @@ function animateCounter(tl) {
   if (!el) return;
   const obj = { val: 0 };
   tl.to(obj, {
-    val: 100, duration: 13.5, ease: 'power1.in',
+    val: 100, duration: 12.5, ease: 'power1.in',
     onUpdate: () => { el.textContent = Math.round(obj.val); }
   }, 0);
 }
@@ -175,9 +175,10 @@ export function runCinematicLoader() {
         // Resolve exactly at the 14-second mark to trigger landing choreography
         resolve();
 
-        // Cinematic dissolve of the loader's dark background
+        // Cinematic atmospheric dissolve of the loader
         gsap.to(loader, {
           opacity: 0,
+          scale: 1.05, // Slight camera push-in
           duration: 1.5,
           ease: 'power2.inOut',
           onComplete: () => {
@@ -224,7 +225,7 @@ export function runCinematicLoader() {
       opacity: 1, y: 0, duration: 0.6, ease: 'power3.out'
     }, 5.2);
 
-    // ─── PHASE 3: CALIBRATION (7-10s) ───
+    // ─── PHASE 3: CALIBRATION (7-10s -> 7-9s) ───
     // Status and progress appear
     tl.to('#loader-status-wrap', {
       opacity: 1, duration: 0.4, ease: 'power2.out'
@@ -235,13 +236,13 @@ export function runCinematicLoader() {
       opacity: 1, duration: 0.3, ease: 'power2.out'
     }, 7.0);
 
-    // Progress bar fills
+    // Progress bar fills (sped up to 5.5s to finish at 12.5s)
     tl.to('#loader-bar-fill', {
-      width: '100%', duration: 6.5,
+      width: '100%', duration: 5.5,
       ease: 'power1.inOut'
     }, 7.0);
 
-    // ─── PHASE 4: AWAKENING (10-13s) ───
+    // ─── PHASE 4: AWAKENING (10-13s -> 9-12s) ───
     // Particle acceleration
     tl.call(() => {
       particles.forEach(p => {
@@ -249,36 +250,36 @@ export function runCinematicLoader() {
         p.vy *= 2.5;
         p.alpha = Math.min(p.alpha * 2, 0.5);
       });
-    }, [], 10);
+    }, [], 9);
 
     // Wordmark glow pulse
     tl.to('#loader-wordmark', {
       textShadow: '0 0 40px rgba(255,255,255,0.15)',
       duration: 1.5, ease: 'power2.inOut'
-    }, 11);
+    }, 10);
 
     // Scan line sweeps
     tl.to('.loader-scanline', {
       opacity: 0.3, duration: 0.3
-    }, 8);
+    }, 7);
     tl.to('.loader-scanline', {
       top: '100%', duration: 4, ease: 'none'
-    }, 8);
+    }, 7);
     tl.to('.loader-scanline', {
       opacity: 0, duration: 0.3
-    }, 12);
+    }, 11);
 
-    // ─── PHASE 5: TRANSITION OUT (13-14s) ───
-    // Everything fades, system hands off to landing
+    // ─── PHASE 5: TRANSITION OUT (13-14s -> 12-13s) ───
+    // Camera pushes through the text into the landing environment
     tl.to('#loader-hero', {
-      y: -30, opacity: 0, duration: 0.8, ease: 'power3.in'
-    }, 13);
+      scale: 1.15, filter: 'blur(15px)', opacity: 0, duration: 1.0, ease: 'power2.in'
+    }, 12);
     tl.to('#loader-status-wrap', {
       opacity: 0, duration: 0.4
-    }, 13);
+    }, 12);
     tl.to('#loader-bar', {
       opacity: 0, duration: 0.4
-    }, 13.2);
+    }, 12.2);
 
     // Schedule status text changes and counter
     scheduleStatusUpdates(tl);

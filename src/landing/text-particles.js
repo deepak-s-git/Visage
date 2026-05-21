@@ -29,7 +29,7 @@ export function initTextParticles(containerSelector) {
     let n;
     const nodes = [];
     while(n = walk.nextNode()) {
-      if (n.textContent.trim().length > 0 && n.parentElement !== canvas) {
+      if (n.textContent.trim().length > 0 && n.parentElement !== canvas && n.parentElement.closest('.landing-title')) {
         nodes.push({
           node: n,
           parent: n.parentElement,
@@ -111,6 +111,9 @@ export function initTextParticles(containerSelector) {
         const i = (y * offCanvas.width + x) * 4;
         const alpha = imgData[i + 3];
         if (alpha > 30) {
+          // Randomize Z multiplier so some particles fly closer/faster
+          const zMultiplier = (Math.random() * 2.5) - 0.5; // -0.5 to 2.0
+          
           particles.push({
             x: x / dpr,
             y: y / dpr,
@@ -118,7 +121,11 @@ export function initTextParticles(containerSelector) {
             baseY: y / dpr,
             vx: 0,
             vy: 0,
-            color: `rgba(${imgData[i]}, ${imgData[i+1]}, ${imgData[i+2]}, ${alpha / 255})`,
+            r: imgData[i],
+            g: imgData[i+1],
+            b: imgData[i+2],
+            baseAlpha: alpha / 255,
+            zMult: zMultiplier,
             size: sampleStep
           });
         }
@@ -151,14 +158,59 @@ export function initTextParticles(containerSelector) {
 
     ctx.clearRect(0, 0, width, height);
     
-    // Sync opacity with the actual title text so it properly hides during the entry gate and loading sequence
+    // Sync base opacity with the actual title text (for fading during loader)
     const titleEl = document.querySelector('.landing-title');
+    let baseSceneOpacity = 1;
     if (titleEl) {
-      canvas.style.opacity = window.getComputedStyle(titleEl).opacity;
+      baseSceneOpacity = parseFloat(window.getComputedStyle(titleEl).opacity);
+      canvas.style.opacity = baseSceneOpacity;
     }
+
+    // Read local landing section progress (0 to 1) for the initial explosion trigger
+    let landingProgress = window._landingSectionProgress || 0;
+    
+    // We want the explosion to start ONLY AFTER the subtexts fade out (which finishes at 0.3)
+    // So the explosion starts ramping up from 0.4 to 1.0
+    let explosionProgress = Math.max(0, (landingProgress - 0.4) / 0.6);
+    
+    // Read global scroll progress to drive the deep 3D flying effect later
+    let globalScrollP = window._visageTitleScrollProgress || 0;
+    
+    // Ramp up the effect intensity aggressively as they scroll down.
+    let scrollIntensity = Math.min(1, explosionProgress + (globalScrollP * 3.0));
+    
+    // Smooth easing for a cinematic transition
+    scrollIntensity = scrollIntensity * scrollIntensity * (3 - 2 * scrollIntensity);
+
+    const cx = width / 2;
+    const cy = height / 2;
     
     for (let i = 0; i < particles.length; i++) {
       let p = particles[i];
+
+      // Calculate the target resting position. If scrolling, push it out in 3D!
+      let targetX = p.baseX;
+      let targetY = p.baseY;
+      let targetSize = p.size;
+      let targetAlpha = p.baseAlpha;
+      
+      if (scrollIntensity > 0) {
+        // Z-depth simulation: Particles scale and separate based on their zMult
+        const depth = 1 + (scrollIntensity * 12 * Math.max(0.1, p.zMult + 1));
+        
+        // Push outward radially from the center of the screen
+        const dxCenter = p.baseX - cx;
+        const dyCenter = p.baseY - cy;
+        
+        targetX = cx + (dxCenter * depth);
+        targetY = cy + (dyCenter * depth);
+        
+        // Scale size slightly to simulate approaching camera
+        targetSize = p.size * (1 + (scrollIntensity * 3 * Math.max(0, p.zMult)));
+        
+        // Fade out completely as they pass the camera
+        targetAlpha = p.baseAlpha * Math.max(0, 1 - (scrollIntensity * 1.2));
+      }
 
       if (mouse.hover) {
         let dx = mouse.x - p.x;
@@ -173,16 +225,20 @@ export function initTextParticles(containerSelector) {
         }
       }
 
-      p.vx += (p.baseX - p.x) * 0.08;
-      p.vy += (p.baseY - p.y) * 0.08;
-      p.vx *= 0.85;
-      p.vy *= 0.85;
+      // Apply mouse-driven velocity with friction
+      p.vx *= 0.82;
+      p.vy *= 0.82;
       p.x += p.vx;
       p.y += p.vy;
 
-      ctx.fillStyle = p.color;
-      // Drawing exactly 1px size ensures crisp, non-blocky text
-      ctx.fillRect(p.x, p.y, p.size, p.size);
+      // Smoothly interpolate (lerp) toward the target position
+      // This prevents violent rubber-band bouncing when scrolling very fast
+      p.x += (targetX - p.x) * 0.12;
+      p.y += (targetY - p.y) * 0.12;
+
+      // Draw particle
+      ctx.fillStyle = `rgba(${p.r}, ${p.g}, ${p.b}, ${targetAlpha})`;
+      ctx.fillRect(p.x, p.y, targetSize, targetSize);
     }
   }
 

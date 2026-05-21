@@ -19,41 +19,58 @@ export function setLandingScene(scene) {
 export function playLandingIntro() {
   const tl = gsap.timeline({ delay: 0.6 });
 
-  // Corner markers fade in (if still present)
-  tl.to('.landing-corner', {
-    opacity: 1, duration: 0.8, stagger: 0.1, ease: 'power2.out'
-  });
+  // Emerge from the blur of the loader (Core and grid solidify from atmosphere)
+  tl.fromTo('.fixed-bg-layer', {
+    opacity: 0, scale: 0.95
+  }, {
+    opacity: 1, scale: 1, duration: 2.5, ease: 'power2.out'
+  }, 0);
+
+  // Emerge the entire landing environment from atmosphere
+  tl.fromTo('.landing', {
+    opacity: 0
+  }, {
+    opacity: 1, duration: 2.0, ease: 'power2.out'
+  }, 0);
+
+  // Title (emerges first alongside the core)
+  tl.fromTo('.landing-title', 
+    { opacity: 0, y: 20 },
+    { opacity: 1, y: 0, duration: 1.5, ease: 'cubic-bezier(0.19, 1, 0.22, 1)' },
+  0.2);
+
+  // Eyebrow
+  tl.fromTo('.landing-eyebrow', 
+    { opacity: 0, y: 12 },
+    { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' },
+  0.4);
+
+  // Subtitle
+  tl.fromTo('.landing-subtitle', 
+    { opacity: 0, y: 10 },
+    { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' },
+  0.5);
+
+  // Version tag
+  tl.fromTo('.landing-version', 
+    { opacity: 0, y: 5 },
+    { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' },
+  0.6);
 
   // System Data Overlays
   tl.to('.system-data', {
     opacity: 1, y: 0, duration: 0.8, stagger: 0.1, ease: 'power3.out'
-  }, '<0.2');
+  }, 0.5);
 
-  // Eyebrow
-  tl.to('.landing-eyebrow', {
-    opacity: 1, y: 0, duration: 0.7, ease: 'power3.out'
-  }, '-=0.4');
+  // Corner markers fade in
+  tl.to('.landing-corner', {
+    opacity: 1, duration: 0.8, stagger: 0.1, ease: 'power2.out'
+  }, 0.8);
 
-  // Title
-  tl.to('.landing-title', {
-    opacity: 1, y: 0, duration: 1.0,
-    ease: 'cubic-bezier(0.19, 1, 0.22, 1)'
-  }, '-=0.3');
-
-  // Subtitle
-  tl.to('.landing-subtitle', {
-    opacity: 1, y: 0, duration: 0.7, ease: 'power3.out'
-  }, '-=0.5');
-
-  // Version tag
-  tl.to('.landing-version', {
-    opacity: 1, duration: 0.5, ease: 'power2.out'
-  }, '-=0.3');
-
-  // Scroll cue (delayed)
+  // Scroll cue (delayed slightly)
   tl.to('.scroll-cue', {
     opacity: 1, duration: 0.8, ease: 'power2.out'
-  }, '-=0.1');
+  }, 1.5);
 
   return tl;
 }
@@ -68,19 +85,26 @@ export function initScrollReveal() {
       end: '+=100%',
       scrub: 0.5,
       pin: true,
-      pinSpacing: true
+      pinSpacing: true,
+      onUpdate: (self) => {
+        window._landingSectionProgress = self.progress;
+      }
     }
   });
 
-  landingTl.to('.landing-content, .system-data', {
-    opacity: 0, y: -60, duration: 0.5, ease: 'none'
-  }, 0)
-  .to('.scroll-cue', {
-    opacity: 0, y: -20, duration: 0.3, ease: 'none'
-  }, 0)
-  .to('.landing-corner', {
-    opacity: 0, duration: 0.5, ease: 'none'
-  }, 0);
+  landingTl.fromTo('.landing-eyebrow, .landing-subtitle, .landing-version, .system-data', 
+    { opacity: 1, y: 0 },
+    { opacity: 0, y: -60, duration: 0.3, ease: 'none', immediateRender: false }, 
+  0)
+  .fromTo('.scroll-cue', 
+    { opacity: 1, y: 0 },
+    { opacity: 0, y: -20, duration: 0.2, ease: 'none', immediateRender: false }, 
+  0)
+  .fromTo('.landing-corner', 
+    { opacity: 1 },
+    { opacity: 0, duration: 0.3, ease: 'none', immediateRender: false }, 
+  0)
+  .set({}, {}, 1.0); // Pad timeline to 1.0 so fade-outs finish in the first 30% of the scroll
 
   // 2. Story Blocks reveal
   gsap.utils.toArray('.story-block').forEach((block, i) => {
@@ -109,13 +133,16 @@ export function initScrollReveal() {
     ease: 'power2.out'
   });
 
-  // 4. Feed scroll progress to Three.js scene + audio over the entire experience
+  // 4. Feed scroll progress to Three.js scene + audio + particle engine over the entire experience
   ScrollTrigger.create({
     trigger: '.experience-scroll-container',
     start: 'top top',
     end: 'bottom bottom',
     scrub: true,
     onUpdate: (self) => {
+      // Feed global scroll progress for the 3D particle engine
+      window._visageTitleScrollProgress = self.progress;
+
       // self.progress goes 0 to 1 over the whole journey
       if (landingScene) landingScene.setScrollProgress(self.progress);
       setAudioScrollProgress(self.progress); // Interpolate audio
