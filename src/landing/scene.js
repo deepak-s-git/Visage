@@ -157,6 +157,7 @@ const fragmentShader = `
   uniform float uTime;
   uniform float uScroll;
   uniform float uValence;
+  uniform float uArousal;
 
   varying vec2 vUv;
   varying vec3 vNormal;
@@ -190,13 +191,13 @@ const fragmentShader = `
     vec3 baseColor = mix(col1, col2, vNoise * 0.5 + 0.5);
     
     // Inner glow / rim light
-    vec3 rimColor = vec3(0.5, 0.8, 1.0) * fresnel * (1.5 + abs(uValence));
+    vec3 rimColor = vec3(0.5, 0.8, 1.0) * fresnel * (2.0 + abs(uValence));
     
     // Final output combining base, fresnel
-    vec3 finalColor = baseColor + rimColor;
+    vec3 finalColor = (baseColor + rimColor) * 1.2; 
     
     // Core should remain strongly visible during scroll, pulse slightly based on arousal
-    float alpha = 0.85 + (uArousal * 0.1) - (uScroll * 0.1);
+    float alpha = clamp(0.95 + (uArousal * 0.1) - (uScroll * 0.1), 0.0, 1.0);
     
     gl_FragColor = vec4(finalColor, alpha);
   }
@@ -271,12 +272,6 @@ export function initLandingScene(canvas) {
   const wireMesh = new THREE.Mesh(coreGeo, wireMat);
   wireMesh.scale.setScalar(1.03);
   scene.add(wireMesh);
-
-  /* ── Inner Solid Core (Depth) ── */
-  const innerMat = new THREE.MeshBasicMaterial({ color: 0x010103 });
-  const innerCore = new THREE.Mesh(coreGeo, innerMat);
-  scene.add(innerCore);
-  scene.innerCore = innerCore; // Store reference
 
   /* ── Core Particle Shell ── */
   const pGeo = new THREE.BufferGeometry();
@@ -467,12 +462,7 @@ export function initLandingScene(canvas) {
     coreMesh.scale.setScalar(dynamicScale);
     wireMesh.scale.setScalar(dynamicScale * 1.05);
 
-    // If inner core and particle shell exist, update them
-    if (scene.innerCore) {
-      scene.innerCore.rotation.y = -time * 0.1;
-      scene.innerCore.rotation.x = -time * 0.1;
-      scene.innerCore.scale.setScalar(dynamicScale * 0.6);
-    }
+    // If particle shell exists, update it
     if (scene.coreParticles) {
       scene.coreParticles.rotation.y = time * 0.05 + mouse.x * 0.5;
       scene.coreParticles.rotation.z = time * 0.05;

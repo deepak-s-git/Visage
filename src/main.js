@@ -19,6 +19,7 @@ import { attemptAutoplay, startAfterGesture, initAmbientAudio } from './audio/am
 import { runCinematicLoader } from './loading/loader.js';
 import { initLandingScene } from './landing/scene.js';
 import { initKineticGrid } from './landing/kinetic-grid.js';
+import { initTextParticles } from './landing/text-particles.js';
 import { initScrollReveal, playLandingIntro, setLandingScene } from './animations/scroll-reveal.js';
 import { initInterfaceAnimations } from './animations/gsap-controller.js';
 import { initCustomCursor } from './animations/cursor.js';
@@ -73,6 +74,9 @@ async function init() {
   
   const gridAPI = initKineticGrid('kinetic-grid-canvas');
   window._visageGrid = gridAPI;
+  
+  // Phase 1.5: Initialize Text Particle Engine on the landing text
+  initTextParticles('.landing-content');
 
   // Phase 2: Attempt true autoplay via Web Audio API
   const result = await attemptAutoplay();

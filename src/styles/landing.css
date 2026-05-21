@@ -30,7 +30,7 @@
   font-weight: 500;
   letter-spacing: 0.50em;
   text-transform: uppercase;
-  color: rgba(100, 200, 255, 0.6);
+  color: rgba(255, 255, 255, 0.9);
   margin-bottom: clamp(16px, 2vh, 24px);
   opacity: 0;
   transform: translateY(12px);
@@ -59,13 +59,13 @@
 }
 
 .title-dot {
-  color: oklch(0.50 0.008 95);
+  color: oklch(0.80 0.008 95);
   margin: 0 2px;
 }
 
 .title-ext {
   font-weight: 400;
-  color: oklch(0.60 0.008 95);
+  color: oklch(0.70 0.008 95);
 }
 
 /* ── Subtitle ── */
@@ -75,7 +75,7 @@
   font-weight: 300;
   letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: oklch(0.45 0.005 100);
+  color: rgba(255, 255, 255, 0.7);
   margin-top: 20px;
   opacity: 0;
   transform: translateY(10px);
@@ -87,7 +87,7 @@
   font-size: 8px;
   letter-spacing: 0.30em;
   text-transform: uppercase;
-  color: oklch(0.30 0.005 100);
+  color: rgba(255, 255, 255, 0.5);
   margin-top: 12px;
   opacity: 0;
 }
