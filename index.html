@@ -17,9 +17,13 @@
   <link rel="stylesheet" href="./src/styles/visage-anim.css">
 
   <style>
-    /* Inline critical: prevent flash */
-    html {
+    /* Inline critical: prevent flash of unstyled content during reload/Vite dev */
+    html, body {
       background: #040406;
+      margin: 0;
+    }
+    body {
+      opacity: 0; /* JS will reveal this instantly once CSS is loaded */
     }
   </style>
 </head>

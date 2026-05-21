@@ -14,6 +14,9 @@ import './styles/visage-obj.css';
 import './styles/visage-anim.css';
 import './styles/landing.css';
 
+// Styles have loaded, reveal body to prevent FOUC
+document.body.style.opacity = '1';
+
 import { gsap } from 'gsap';
 import { attemptAutoplay, startAfterGesture, initAmbientAudio } from './audio/ambient.js';
 import { runCinematicLoader } from './loading/loader.js';
