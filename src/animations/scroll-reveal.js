@@ -82,7 +82,7 @@ export function initScrollReveal() {
     scrollTrigger: {
       trigger: '.landing',
       start: 'top top',
-      end: '+=100%',
+      end: '+=50%',
       scrub: 0.5,
       pin: true,
       pinSpacing: true,
@@ -106,8 +106,40 @@ export function initScrollReveal() {
   0)
   .set({}, {}, 1.0); // Pad timeline to 1.0 so fade-outs finish in the first 30% of the scroll
 
-  // 2. Story Blocks reveal
-  gsap.utils.toArray('.story-block').forEach((block, i) => {
+  // 2. Custom reveal for Story Block 1 (Dimensional Empathy 3D Gallery)
+  const sb1 = document.getElementById('story-block-1');
+  if (sb1) {
+    const sb1Tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: sb1,
+        start: 'top 95%',
+        end: 'top 30%',
+        scrub: 1
+      }
+    });
+
+    // Fade in the whole block
+    sb1Tl.to(sb1, { opacity: 1, y: 0, duration: 1 }, 0);
+
+    // Cards fly in from deep Z-space and fan out massively
+    sb1Tl.fromTo('.g-card-1', 
+      { opacity: 0, z: -1000, rotationY: 0, x: 0, y: 0 },
+      { opacity: 1, z: -150, rotationY: 12, x: -220, y: -120, duration: 1.2, ease: 'power2.out' }, 
+    0);
+    sb1Tl.fromTo('.g-card-2', 
+      { opacity: 0, z: -800, rotationY: 0, x: 0, y: 0 },
+      { opacity: 1, z: 0, rotationY: 0, x: 0, y: 0, duration: 1.2, ease: 'power2.out' }, 
+    0.2);
+    sb1Tl.fromTo('.g-card-3', 
+      { opacity: 0, z: -600, rotationY: 0, x: 0, y: 0 },
+      { opacity: 1, z: -80, rotationY: -12, x: 220, y: 120, duration: 1.2, ease: 'power2.out' }, 
+    0.4);
+  }
+
+  // 3. Generic reveal for remaining story blocks
+  gsap.utils.toArray('.story-block').forEach((block) => {
+    if (block.id === 'story-block-1') return; // Handled custom above
+    
     gsap.to(block, {
       scrollTrigger: {
         trigger: block,

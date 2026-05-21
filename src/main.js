@@ -26,6 +26,7 @@ import { initTextParticles } from './landing/text-particles.js';
 import { initScrollReveal, playLandingIntro, setLandingScene } from './animations/scroll-reveal.js';
 import { initInterfaceAnimations } from './animations/gsap-controller.js';
 import { initCustomCursor } from './animations/cursor.js';
+import { initDecryptEffect } from './animations/decrypt-effect.js';
 
 /* ── Entry Gate (shown only if browser blocks autoplay) ── */
 function showEntryGate() {
@@ -105,6 +106,7 @@ async function init() {
 
   // Phase 6: Initialize interface animations
   initInterfaceAnimations();
+  initDecryptEffect();
 }
 
 // Wait for DOM
