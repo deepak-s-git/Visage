@@ -212,6 +212,54 @@
             <div class="matrix-column m-c-4"></div>
             <div class="matrix-column m-c-5"></div>
           </div>
+
+          <!-- Deep Neural Environment Layer -->
+          <div class="neural-environment">
+            <div class="volumetric-glow"></div>
+            
+            <svg class="orbital-rings" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet" style="overflow: visible;">
+              <!-- Draw Mask -->
+              <mask id="draw-mask">
+                <circle cx="500" cy="500" r="450" fill="none" stroke="white" stroke-width="20" class="draw-mask-circle"></circle>
+              </mask>
+              
+              <!-- Single Connection Ring -->
+              <circle cx="500" cy="500" r="450" class="ring r-main" mask="url(#draw-mask)"></circle>
+              
+              <!-- Incoming Construction Particles -->
+              <g class="construction-particles">
+                <circle cx="500" cy="50" r="3" fill="#fff" class="c-part cp-1"></circle>
+                <circle cx="500" cy="50" r="3" fill="#fff" class="c-part cp-2"></circle>
+                <circle cx="500" cy="50" r="3" fill="#fff" class="c-part cp-3"></circle>
+                <circle cx="500" cy="50" r="3" fill="#fff" class="c-part cp-4"></circle>
+              </g>
+
+              <!-- Single Blue Meteor -->
+              <g class="meteor-wrapper">
+                <g class="meteor-group">
+                  <animateTransform id="meteorOrbit" attributeName="transform" type="rotate" from="0 500 500" to="360 500 500" dur="30s" repeatCount="indefinite" begin="indefinite" />
+                
+                <!-- Head Glow Layers (Replaces CSS filter to prevent SVG bounding box clipping) -->
+                <circle cx="500" cy="50" r="18" fill="rgba(100, 200, 255, 0.15)"></circle>
+                <circle cx="500" cy="50" r="10" fill="rgba(100, 200, 255, 0.4)"></circle>
+                <!-- Head Core -->
+                <circle cx="500" cy="50" r="5" fill="#fff" class="meteor-head"></circle>
+                
+                <!-- Tail particles trailing perfectly along the r=450 arc -->
+                <!-- Tail 1 with its own soft glow -->
+                <circle cx="484.3" cy="50.3" r="8" fill="rgba(100, 200, 255, 0.2)"></circle>
+                <circle cx="484.3" cy="50.3" r="3.5" fill="#fff" class="meteor-tail" style="opacity: 0.8;"></circle>
+                
+                <!-- Tail 2 -->
+                <circle cx="468.6" cy="51.1" r="5" fill="rgba(100, 200, 255, 0.15)"></circle>
+                <circle cx="468.6" cy="51.1" r="2.5" fill="#fff" class="meteor-tail" style="opacity: 0.5;"></circle>
+                
+                <!-- Tail 3 -->
+                <circle cx="453.0" cy="52.5" r="1.5" fill="#fff" class="meteor-tail" style="opacity: 0.2;"></circle>
+              </g>
+              </g>
+            </svg>
+          </div>
           
           <!-- Ambient UI Filler that will shatter -->
           <div class="ambient-ui-filler">
