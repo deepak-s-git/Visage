@@ -148,6 +148,14 @@ export function initKineticGrid(canvasId) {
 
     ctx.lineWidth = 1;
     
+    // Read Hack Progress for color shift
+    const hack = window._visageHackProgress || 0;
+    
+    // Base colors: Blue (120, 190, 255) -> Red (255, 30, 30)
+    const r = Math.round(120 + (135 * hack));
+    const g = Math.round(190 - (160 * hack));
+    const b = Math.round(255 - (225 * hack));
+    
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < cols; x++) {
         const i = y * cols + x;
@@ -164,7 +172,7 @@ export function initKineticGrid(canvasId) {
 
         if (dynamicAlpha > 0.01) {
           // Draw dots
-          ctx.fillStyle = `rgba(120, 190, 255, ${Math.min(dynamicAlpha * 1.5, 0.8)})`;
+          ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${Math.min(dynamicAlpha * 1.5, 0.8)})`;
           ctx.beginPath();
           ctx.arc(p.x, p.y, 1.2 * zScale, 0, Math.PI * 2);
           ctx.fill();
@@ -172,20 +180,24 @@ export function initKineticGrid(canvasId) {
           // Connect horizontal
           if (x < cols - 1) {
             const right = points[i + 1];
-            drawLine(p, right, dynamicAlpha);
+            drawLine(p, right, dynamicAlpha, hack);
           }
           // Connect vertical
           if (y < rows - 1) {
             const down = points[i + cols];
-            drawLine(p, down, dynamicAlpha);
+            drawLine(p, down, dynamicAlpha, hack);
           }
         }
       }
     }
   }
 
-  function drawLine(p1, p2, alpha) {
-    ctx.strokeStyle = `rgba(100, 150, 255, ${alpha * 0.5})`;
+  function drawLine(p1, p2, alpha, hack) {
+    // Line colors: Blue (100, 150, 255) -> Red (255, 30, 30)
+    const r = Math.round(100 + (155 * hack));
+    const g = Math.round(150 - (120 * hack));
+    const b = Math.round(255 - (225 * hack));
+    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.5})`;
     ctx.beginPath();
     ctx.moveTo(p1.x, p1.y);
     ctx.lineTo(p2.x, p2.y);

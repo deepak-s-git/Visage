@@ -82,7 +82,7 @@ export function initScrollReveal() {
     scrollTrigger: {
       trigger: '.landing',
       start: 'top top',
-      end: '+=50%',
+      end: '+=80%',
       scrub: 0.5,
       pin: true,
       pinSpacing: true,
@@ -112,8 +112,8 @@ export function initScrollReveal() {
     const sb1Tl = gsap.timeline({
       scrollTrigger: {
         trigger: sb1,
-        start: 'top 95%',
-        end: 'top 30%',
+        start: 'top 110%', // Trigger slightly before it enters the viewport
+        end: 'top 10%',   // Finish animating much earlier
         scrub: 1
       }
     });
@@ -121,24 +121,88 @@ export function initScrollReveal() {
     // Fade in the whole block
     sb1Tl.to(sb1, { opacity: 1, y: 0, duration: 1 }, 0);
 
-    // Cards fly in from deep Z-space and fan out massively
-    sb1Tl.fromTo('.g-card-1', 
+    // Orbital scattering: Main card center, 4 cipher cards orbit around it sequentially
+    sb1Tl.fromTo('.o-card-0', 
       { opacity: 0, z: -1000, rotationY: 0, x: 0, y: 0 },
-      { opacity: 1, z: -150, rotationY: 12, x: -220, y: -120, duration: 1.2, ease: 'power2.out' }, 
+      { opacity: 1, z: 150, rotationY: 0, x: '0vw', y: '0vh', duration: 1.2, ease: 'power2.out' }, 
     0);
-    sb1Tl.fromTo('.g-card-2', 
-      { opacity: 0, z: -800, rotationY: 0, x: 0, y: 0 },
-      { opacity: 1, z: 0, rotationY: 0, x: 0, y: 0, duration: 1.2, ease: 'power2.out' }, 
+    sb1Tl.fromTo('.o-card-1', 
+      { opacity: 0, z: -1000, rotationY: -10, x: 0, y: 0 },
+      { opacity: 1, z: -50, rotationY: 15, x: '-29vw', y: '-26vh', duration: 1.2, ease: 'power2.out' }, 
+    0.1);
+    sb1Tl.fromTo('.o-card-2', 
+      { opacity: 0, z: -1000, rotationY: 10, x: 0, y: 0 },
+      { opacity: 1, z: 0, rotationY: -15, x: '29vw', y: '-26vh', duration: 1.2, ease: 'power2.out' }, 
     0.2);
-    sb1Tl.fromTo('.g-card-3', 
-      { opacity: 0, z: -600, rotationY: 0, x: 0, y: 0 },
-      { opacity: 1, z: -80, rotationY: -12, x: 220, y: 120, duration: 1.2, ease: 'power2.out' }, 
+    sb1Tl.fromTo('.o-card-3', 
+      { opacity: 0, z: -1000, rotationY: -10, x: 0, y: 0 },
+      { opacity: 1, z: 100, rotationY: 10, x: '-29vw', y: '26vh', duration: 1.2, ease: 'power2.out' }, 
+    0.3);
+    sb1Tl.fromTo('.o-card-4', 
+      { opacity: 0, z: -1000, rotationY: 10, x: 0, y: 0 },
+      { opacity: 1, z: 50, rotationY: -10, x: '29vw', y: '26vh', duration: 1.2, ease: 'power2.out' }, 
     0.4);
   }
 
-  // 3. Generic reveal for remaining story blocks
+  // 3. Custom reveal & Core Hack for Story Block 2
+  const sb2 = document.getElementById('story-block-2');
+  if (sb2) {
+    // Ensure hack progress starts at 0
+    window._visageHackProgress = 0;
+
+    const sb2Tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: sb2,
+        start: 'top top',
+        end: '+=400%',
+        scrub: 1,
+        pin: true,
+        pinSpacing: true
+      }
+    });
+
+    // Fade in the whole block initially
+    sb2Tl.set(sb2, { opacity: 1 }, 0);
+
+    // Phase 1: Disintegrate the matrix wrapper (0.0 to 1.0 on timeline)
+    sb2Tl.to('.explodable-matrix', {
+      scale: 3.0,
+      filter: 'blur(30px)',
+      opacity: 0,
+      duration: 1,
+      ease: 'power3.in'
+    }, 0);
+    
+    sb2Tl.to('.matrix-column, .ambient-hud, .info-container', {
+      x: () => (Math.random() - 0.5) * 1500,
+      y: () => (Math.random() - 0.5) * 1500,
+      rotationZ: () => (Math.random() - 0.5) * 180,
+      opacity: 0,
+      stagger: 0.05,
+      duration: 1,
+      ease: 'power3.in'
+    }, 0);
+
+    // Phase 2: The Plunge / Hack Override (0.5 to 2.5 on timeline)
+    // Feeds directly into scene.js uHackProgress
+    sb2Tl.to(window, {
+      _visageHackProgress: 1.0,
+      duration: 2,
+      ease: 'power2.inOut'
+    }, 0.5);
+
+    // Phase 3: The Interior Reveal (2.5 to 3.5 on timeline)
+    sb2Tl.to('.hacked-core-interior', {
+      opacity: 1,
+      pointerEvents: 'auto',
+      duration: 1,
+      ease: 'power2.out'
+    }, 2.5);
+  }
+
+  // 4. Generic reveal for remaining story blocks
   gsap.utils.toArray('.story-block').forEach((block) => {
-    if (block.id === 'story-block-1') return; // Handled custom above
+    if (block.id === 'story-block-1' || block.id === 'story-block-2') return; // Handled custom above
     
     gsap.to(block, {
       scrollTrigger: {

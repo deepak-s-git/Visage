@@ -116,6 +116,7 @@ const vertexShader = `
   uniform float uScroll;
   uniform float uMouseIntensity;
   uniform float uArousal;
+  uniform float uHackProgress;
   
   varying vec2 vUv;
   varying vec3 vNormal;
@@ -126,14 +127,17 @@ const vertexShader = `
     vUv = uv;
     vNormal = normalize(normalMatrix * normal);
     
-    // Smooth fluid noise
-    // High arousal = faster, more erratic, spikier waves
-    float noiseFreq = 1.2 + (uArousal * 0.8);
-    float noiseAmp = 0.35 + (uMouseIntensity * 0.15) + (uArousal * 0.25);
+    // Cinematic Timewarp: Slow, ominous stretch instead of rapid shaking
+    // High arousal = faster waves. Hack Progress = deep, slow distortion.
+    float noiseFreq = 1.2 + (uArousal * 0.8) - (uHackProgress * 0.5); 
+    float noiseAmp = 0.35 + (uMouseIntensity * 0.15) + (uArousal * 0.25) + (uHackProgress * 0.6);
     
+    // Slow down the time influence during a hack for a "Matrix bullet time" feel
+    float hackTime = uTime * (1.0 - (uHackProgress * 0.8));
+
     vec3 noisePos = vec3(
-      position.x * noiseFreq + uTime * (0.2 + uArousal * 0.3), 
-      position.y * noiseFreq + uTime * (0.3 + uArousal * 0.3), 
+      position.x * noiseFreq + hackTime * 0.2, 
+      position.y * noiseFreq + hackTime * 0.3, 
       position.z * noiseFreq
     );
     float n = snoise(noisePos);
@@ -141,9 +145,13 @@ const vertexShader = `
     
     // Displace vertices along normal
     vec3 newPosition = position + normal * (n * noiseAmp);
+
+    // Timewarp Stretch: Pull the mesh along the Z axis based on Hack Progress
+    newPosition.z += position.z * (pow(uHackProgress, 2.0) * 2.0);
     
-    // Scale down slightly on scroll
-    newPosition *= (1.0 - (uScroll * 0.3));
+    // Scale down slightly on scroll initially, but MASSIVELY scale up during Hack to fly-through
+    float scaleMod = (1.0 - (uScroll * 0.3)) + (pow(uHackProgress, 2.0) * 8.0);
+    newPosition *= scaleMod;
 
     vec4 mvPosition = modelViewMatrix * vec4(newPosition, 1.0);
     vViewPosition = -mvPosition.xyz;
@@ -158,17 +166,12 @@ const fragmentShader = `
   uniform float uScroll;
   uniform float uValence;
   uniform float uArousal;
+  uniform float uHackProgress;
 
   varying vec2 vUv;
   varying vec3 vNormal;
   varying vec3 vViewPosition;
   varying float vNoise;
-
-  // HSL to RGB conversion helper
-  vec3 hsl2rgb(vec3 c) {
-      vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0, 0.0, 1.0);
-      return c.z + c.y * (rgb-0.5)*(1.0-abs(2.0*c.z-1.0));
-  }
 
   void main() {
     vec3 normal = normalize(vNormal);
@@ -180,7 +183,6 @@ const fragmentShader = `
     fresnel = pow(fresnel, 3.0);
     
     // Valence controls the hue shift.
-    // Base colors are deep blue. Valence < 0 shifts to purple/red. Valence > 0 shifts to bright cyan/yellow.
     vec3 col1 = mix(uColor1, vec3(0.8, 0.1, 0.2), clamp(-uValence, 0.0, 1.0)); // Negative valence
     col1 = mix(col1, vec3(0.1, 0.8, 0.6), clamp(uValence, 0.0, 1.0)); // Positive valence
     
@@ -196,8 +198,17 @@ const fragmentShader = `
     // Final output combining base, fresnel
     vec3 finalColor = (baseColor + rimColor) * 1.2; 
     
+    // === HACK OVERRIDE ===
+    // Shift color to violent glowing Crimson Red
+    vec3 hackCore = vec3(0.9, 0.0, 0.05);
+    vec3 hackRim = vec3(1.0, 0.1, 0.1) * fresnel * 4.0;
+    
+    finalColor = mix(finalColor, hackCore + hackRim, uHackProgress);
+    
     // Core should remain strongly visible during scroll, pulse slightly based on arousal
+    // Fade out completely as the camera passes through the wall (HackProgress -> 1)
     float alpha = clamp(0.95 + (uArousal * 0.1) - (uScroll * 0.1), 0.0, 1.0);
+    alpha = mix(alpha, 0.0, pow(uHackProgress, 4.0)); // Fade out at the very end of the dive
     
     gl_FragColor = vec4(finalColor, alpha);
   }
@@ -231,6 +242,7 @@ export function initLandingScene(canvas) {
     uMouseIntensity: { value: 0 },
     uValence: { value: 0 },
     uArousal: { value: 0 },
+    uHackProgress: { value: 0 },
     uColor1: { value: new THREE.Color(0x0a0a0f) }, // Deep dark void
     uColor2: { value: new THREE.Color(0x1a2b4c) }  // Neural blue tint
   };
@@ -446,7 +458,8 @@ export function initLandingScene(canvas) {
 
     // Update Uniforms
     coreUniforms.uTime.value = time;
-    coreUniforms.uScroll.value = scrollProgress;
+    coreUniforms.uScroll.value = Math.max(0, scrollProgress);
+    coreUniforms.uHackProgress.value = window._visageHackProgress || 0;
     coreUniforms.uMouseIntensity.value += (mouse.velocity - coreUniforms.uMouseIntensity.value) * 0.1;
 
     // Core slow rotation

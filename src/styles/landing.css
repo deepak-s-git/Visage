@@ -202,6 +202,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-top: -30vh; /* Pull the section up to eliminate dead scroll gap */
   padding: 5vh 0;
   gap: 25vh;
   z-index: 10;
@@ -220,56 +221,31 @@
   transform: translateY(100px);
 }
 
-/* ── 01. Dimensional Empathy (Split & 3D Gallery) ── */
-.split-scroll-block {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4vw;
-  width: 100%;
-}
-
-.split-left {
-  flex: 0 0 40%;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.card-eyebrow {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.3em;
-  color: #64b4ff;
-  text-transform: uppercase;
-}
-
-.card-title {
-  font-family: var(--sans);
-  font-size: clamp(32px, 4vw, 56px);
-  font-weight: 300;
-  line-height: 1.1;
-  color: #ffffff;
-  margin-bottom: var(--space-sm);
-}
-
-.card-desc {
-  font-family: var(--mono);
-  font-size: 12px;
-  line-height: 1.6;
-  color: rgba(255, 255, 255, 0.6);
-  max-width: 400px;
-}
-
-.gallery-3d-container {
-  flex: 1;
+/* ── 01. Dimensional Empathy (Orbital Array) ── */
+.orbital-gallery-container {
   position: relative;
-  height: 600px;
+  width: 100vw;
+  height: 100vh;
   perspective: 1200px;
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Break out of standard story-block bounds */
+  max-width: 100vw !important;
+  padding: 0 !important;
 }
+
+@keyframes ambientDrift1 { 0%, 100% { translate: 0 0; } 50% { translate: 0 -20px; } }
+@keyframes ambientDrift2 { 0%, 100% { translate: 0 0; } 50% { translate: 0 25px; } }
+@keyframes ambientDrift3 { 0%, 100% { translate: 0 0; } 50% { translate: 0 -15px; } }
+@keyframes ambientDrift4 { 0%, 100% { translate: 0 0; } 50% { translate: 0 18px; } }
+@keyframes ambientDrift5 { 0%, 100% { translate: 0 0; } 50% { translate: 0 -22px; } }
+
+.float-anim-1 { animation: ambientDrift1 8s ease-in-out infinite; }
+.float-anim-2 { animation: ambientDrift2 11s ease-in-out infinite; }
+.float-anim-3 { animation: ambientDrift3 9s ease-in-out infinite; }
+.float-anim-4 { animation: ambientDrift4 10s ease-in-out infinite; }
+.float-anim-5 { animation: ambientDrift5 12s ease-in-out infinite; }
 
 .gallery-card {
   position: absolute;
@@ -379,6 +355,192 @@
 .matrix-content {
   z-index: 2;
   max-width: 550px;
+}
+
+/* ── 02b. Core Hack / Disintegration ── */
+.massive-matrix-block {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.explodable-matrix {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.matrix-info-cards {
+  display: flex;
+  gap: 30vw;
+  z-index: 3;
+}
+
+.info-container {
+  max-width: 400px;
+  background: rgba(10, 15, 25, 0.6);
+  padding: 30px;
+  border: 1px solid rgba(100, 180, 255, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.ambient-ui-filler {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ambient-hud {
+  position: absolute;
+  color: rgba(100, 180, 255, 0.4);
+  font-family: monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.a-hud-1 { top: 15%; left: 10%; }
+.a-hud-2 { bottom: 20%; right: 10%; }
+.a-hud-3 { top: 10%; right: 15%; }
+
+.hud-line {
+  height: 1px;
+  width: 150px;
+  background: linear-gradient(90deg, rgba(100, 180, 255, 0.4), transparent);
+}
+.a-hud-2 .hud-line {
+  order: -1;
+  background: linear-gradient(-90deg, rgba(100, 180, 255, 0.4), transparent);
+}
+
+.ambient-stream {
+  position: absolute;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(to bottom, transparent, rgba(100, 180, 255, 0.15), transparent);
+  animation: stream-scan 10s linear infinite;
+}
+.as-1 { left: 20%; animation-delay: 0s; }
+.as-2 { left: 80%; animation-delay: 2s; }
+.as-3 { left: 50%; animation-delay: 5s; width: 2px; background: linear-gradient(to bottom, transparent, rgba(100, 180, 255, 0.05), transparent); }
+
+@keyframes stream-scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+.hacked-core-interior {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.red-matrix-rain {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-around;
+  z-index: -1;
+  opacity: 0.6;
+  transform: perspective(600px) rotateX(20deg);
+}
+
+.red-stream {
+  width: 2px;
+  height: 150%;
+  background: linear-gradient(to bottom, transparent, #ff1a1a, transparent);
+  animation: red-rain 3s linear infinite;
+  box-shadow: 0 0 15px #ff1a1a;
+}
+
+.rs-1 { animation-delay: 0.1s; animation-duration: 2s; }
+.rs-2 { animation-delay: 1.5s; animation-duration: 4s; }
+.rs-3 { animation-delay: 0.8s; animation-duration: 2.5s; }
+.rs-4 { animation-delay: 2.2s; animation-duration: 3.5s; }
+.rs-5 { animation-delay: 0.4s; animation-duration: 2.8s; }
+.rs-6 { animation-delay: 1.1s; animation-duration: 3.2s; }
+.rs-7 { animation-delay: 2.8s; animation-duration: 2.2s; }
+
+@keyframes red-rain {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+.hack-alert {
+  text-align: center;
+  margin-bottom: 60px;
+  border: 2px solid #ff1a1a;
+  background: rgba(25, 0, 0, 0.8);
+  padding: 20px 60px;
+  box-shadow: 0 0 50px rgba(255, 0, 0, 0.4);
+}
+
+.hack-warning-text {
+  color: #ff1a1a;
+  font-family: monospace;
+  font-size: 16px;
+  letter-spacing: 4px;
+}
+
+.blink {
+  animation: hack-blink 1s steps(2, start) infinite;
+}
+
+@keyframes hack-blink {
+  to { visibility: hidden; }
+}
+
+.hack-title {
+  color: #fff;
+  font-size: 3rem;
+  font-weight: bold;
+  letter-spacing: 8px;
+  margin-top: 10px;
+  text-shadow: 0 0 20px #ff1a1a;
+}
+
+.hack-data-nodes {
+  display: flex;
+  gap: 40px;
+}
+
+.hack-node {
+  background: rgba(255, 0, 0, 0.1);
+  border: 1px solid rgba(255, 0, 0, 0.3);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 200px;
+}
+
+.h-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+}
+
+.h-val {
+  color: #ff1a1a;
+  font-size: 24px;
+  font-family: monospace;
+  font-weight: bold;
 }
 
 /* ── 03. Tron Audio Chamber ── */
