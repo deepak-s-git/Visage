@@ -112,36 +112,51 @@ export function initScrollReveal() {
     const sb1Tl = gsap.timeline({
       scrollTrigger: {
         trigger: sb1,
-        start: 'top 110%', // Trigger slightly before it enters the viewport
-        end: 'top 10%',   // Finish animating much earlier
-        scrub: 1
+        start: 'top top', // Pin the section when it reaches the top
+        end: '+=250%',   // Hold the scroll for 250% viewport height for cinematic pacing
+        scrub: 1.5,
+        pin: true,
+        pinSpacing: true
       }
     });
 
-    // Fade in the whole block
-    sb1Tl.to(sb1, { opacity: 1, y: 0, duration: 1 }, 0);
-
-    // Orbital scattering: Main card center, 4 cipher cards orbit around it sequentially
+    // Make the main center card fade in and scale up first
     sb1Tl.fromTo('.o-card-0', 
-      { opacity: 0, z: -1000, rotationY: 0, x: 0, y: 0 },
-      { opacity: 1, z: 150, rotationY: 0, x: '0vw', y: '0vh', duration: 1.2, ease: 'power2.out' }, 
+      { opacity: 0, scale: 0.8 },
+      { opacity: 1, scale: 1, duration: 0.5, ease: 'power2.out' }, 
     0);
+
+    // Animate the 4 side cards symmetrically flying outwards from the core
+    // Top Left
     sb1Tl.fromTo('.o-card-1', 
-      { opacity: 0, z: -1000, rotationY: -10, x: 0, y: 0 },
-      { opacity: 1, z: -50, rotationY: 15, x: '-29vw', y: '-26vh', duration: 1.2, ease: 'power2.out' }, 
-    0.1);
-    sb1Tl.fromTo('.o-card-2', 
-      { opacity: 0, z: -1000, rotationY: 10, x: 0, y: 0 },
-      { opacity: 1, z: 0, rotationY: -15, x: '29vw', y: '-26vh', duration: 1.2, ease: 'power2.out' }, 
+      { opacity: 0, z: -500, rotationY: -10, x: '-10vw', y: '-10vh' },
+      { opacity: 1, z: 0, rotationY: 15, x: '-32vw', y: '-30vh', duration: 1, ease: 'power3.out' }, 
     0.2);
+    // Top Right
+    sb1Tl.fromTo('.o-card-2', 
+      { opacity: 0, z: -500, rotationY: 10, x: '10vw', y: '-10vh' },
+      { opacity: 1, z: 0, rotationY: -15, x: '32vw', y: '-30vh', duration: 1, ease: 'power3.out' }, 
+    0.2);
+    // Bottom Left
     sb1Tl.fromTo('.o-card-3', 
-      { opacity: 0, z: -1000, rotationY: -10, x: 0, y: 0 },
-      { opacity: 1, z: 100, rotationY: 10, x: '-29vw', y: '26vh', duration: 1.2, ease: 'power2.out' }, 
-    0.3);
-    sb1Tl.fromTo('.o-card-4', 
-      { opacity: 0, z: -1000, rotationY: 10, x: 0, y: 0 },
-      { opacity: 1, z: 50, rotationY: -10, x: '29vw', y: '26vh', duration: 1.2, ease: 'power2.out' }, 
+      { opacity: 0, z: -500, rotationY: -10, x: '-10vw', y: '10vh' },
+      { opacity: 1, z: 0, rotationY: 15, x: '-32vw', y: '30vh', duration: 1, ease: 'power3.out' }, 
     0.4);
+    // Bottom Right
+    sb1Tl.fromTo('.o-card-4', 
+      { opacity: 0, z: -500, rotationY: 10, x: '10vw', y: '10vh' },
+      { opacity: 1, z: 0, rotationY: -15, x: '32vw', y: '30vh', duration: 1, ease: 'power3.out' }, 
+    0.4);
+
+    // --- Cinematic Exit Animation (Triggered as user keeps scrolling) ---
+    // Cards hold position for a moment, then fly aggressively past the camera to clear the screen
+    sb1Tl.to('.o-card-1', { z: 1500, x: '-60vw', y: '-60vh', rotationY: 45, opacity: 0, duration: 1.5, ease: 'expo.in' }, 2.0);
+    sb1Tl.to('.o-card-2', { z: 1500, x: '60vw', y: '-60vh', rotationY: -45, opacity: 0, duration: 1.5, ease: 'expo.in' }, 2.0);
+    sb1Tl.to('.o-card-3', { z: 1500, x: '-60vw', y: '60vh', rotationY: 45, opacity: 0, duration: 1.5, ease: 'expo.in' }, 2.0);
+    sb1Tl.to('.o-card-4', { z: 1500, x: '60vw', y: '60vh', rotationY: -45, opacity: 0, duration: 1.5, ease: 'expo.in' }, 2.0);
+    
+    // Center card zooms straight into the viewer
+    sb1Tl.to('.o-card-0', { scale: 4.0, opacity: 0, duration: 1.5, ease: 'expo.in' }, 2.0);
   }
 
   // 3. Custom reveal & Core Hack for Story Block 2
@@ -150,6 +165,89 @@ export function initScrollReveal() {
     // Ensure hack progress starts at 0
     window._visageHackProgress = 0;
 
+    // --- Cinematic Entry Animation for Story Block 2 ---
+    const sb2EntryTl = gsap.timeline({
+      scrollTrigger: {
+        trigger: sb2,
+        start: 'top 100%', // Start as soon as it enters the bottom
+        end: 'top top',    // Finish entry EXACTLY when it pins
+        scrub: 1.5         // Super smooth cinematic scrub
+      }
+    });
+
+    // CRITICAL: Set initial states for the cinematic construction sequence
+    gsap.set('.draw-mask-circle', { 
+      strokeDasharray: '2828', 
+      strokeDashoffset: '2828',
+      transformOrigin: '50% 50%',
+      rotation: -90 // Start drawing from the top where the meteor lands!
+    });
+    gsap.set('.meteor-wrapper', { opacity: 0, scale: 0, transformOrigin: '500px 500px' });
+    gsap.set('.c-part', { opacity: 0 });
+
+    // CRITICAL: Make the parent block visible! It defaults to opacity: 0 in CSS.
+    sb2EntryTl.set(sb2, { opacity: 1 }, 0);
+
+    // Slide up over the entire scroll duration (0.0 to 4.0)
+    sb2EntryTl.fromTo('.explodable-matrix', 
+      { opacity: 0, y: 300, scale: 0.7, rotationX: 30 },
+      { opacity: 1, y: 0, scale: 1, rotationX: 0, duration: 4.0, ease: 'power2.out' }, 
+    0);
+
+    // Extreme deep dive scaling (0.0 to 4.0)
+    sb2EntryTl.fromTo('.neural-environment',
+      { scale: 0.05, rotationZ: -180 },
+      { scale: 1, rotationZ: 0, duration: 4.0, ease: 'power2.out' }, 
+    0);
+
+    // --- NEW: Cinematic Construction Sequence ---
+    // Delay construction until the section is actually visible in the viewport (Starts at 2.0)
+    
+    // 1. The ring draws itself circularly (2.0 to 3.5)
+    sb2EntryTl.to('.draw-mask-circle', {
+      strokeDashoffset: 0,
+      duration: 1.5,
+      ease: 'none' // Linear draw looks more mechanical and precise
+    }, 2.0);
+
+    // 2. Data particles fly in (2.5 to 3.2)
+    sb2EntryTl.fromTo('.cp-1', { opacity: 0, x: -300, y: -200, scale: 0 }, { opacity: 1, x: 0, y: 0, scale: 1, duration: 0.7, ease: 'power3.out' }, 2.5);
+    sb2EntryTl.fromTo('.cp-2', { opacity: 0, x: 300, y: -300, scale: 0 }, { opacity: 1, x: 0, y: 0, scale: 1, duration: 0.7, ease: 'power3.out' }, 2.6);
+    sb2EntryTl.fromTo('.cp-3', { opacity: 0, x: -100, y: -400, scale: 0 }, { opacity: 1, x: 0, y: 0, scale: 1, duration: 0.7, ease: 'power3.out' }, 2.7);
+    sb2EntryTl.fromTo('.cp-4', { opacity: 0, x: 200, y: -250, scale: 0 }, { opacity: 1, x: 0, y: 0, scale: 1, duration: 0.7, ease: 'power3.out' }, 2.8);
+
+    // 3. Particles merge (3.4)
+    sb2EntryTl.to('.c-part', { scale: 0, opacity: 0, duration: 0.2, ease: 'power3.in' }, 3.4);
+    
+    // 4. Meteor explodes into existence and lands (3.5 to 4.0)
+    sb2EntryTl.to('.meteor-wrapper', {
+      opacity: 1,
+      scale: 1,
+      duration: 0.5,
+      ease: 'elastic.out(1, 0.4)'
+    }, 3.5);
+
+    // 5. Trigger SVG orbit exactly as it finishes centering (4.0)
+    sb2EntryTl.call(() => {
+      const orbiter = document.getElementById('meteorOrbit');
+      if (orbiter && typeof orbiter.beginElement === 'function') {
+        orbiter.beginElement();
+      }
+    }, null, 4.0);
+
+    // Info cards fly in aggressively from the abyss (2.5 to 4.0)
+    sb2EntryTl.fromTo('.matrix-info-cards .info-container:first-child',
+      { x: -800, z: -1000, rotationY: -90, rotationX: 45, opacity: 0 },
+      { x: 0, z: 0, rotationY: 0, rotationX: 0, opacity: 1, duration: 1.5, ease: 'expo.out' }, 
+    2.5);
+
+    sb2EntryTl.fromTo('.matrix-info-cards .info-container:last-child',
+      { x: 800, z: -1000, rotationY: 90, rotationX: 45, opacity: 0 },
+      { x: 0, z: 0, rotationY: 0, rotationX: 0, opacity: 1, duration: 1.5, ease: 'expo.out' }, 
+    2.5);
+
+
+    // --- Core Hack / Disintegration (Pinned) ---
     const sb2Tl = gsap.timeline({
       scrollTrigger: {
         trigger: sb2,
@@ -161,9 +259,6 @@ export function initScrollReveal() {
       }
     });
 
-    // Fade in the whole block initially
-    sb2Tl.set(sb2, { opacity: 1 }, 0);
-
     // Phase 1: Disintegrate the matrix wrapper (0.0 to 1.0 on timeline)
     sb2Tl.to('.explodable-matrix', {
       scale: 3.0,
@@ -173,7 +268,7 @@ export function initScrollReveal() {
       ease: 'power3.in'
     }, 0);
     
-    sb2Tl.to('.matrix-column, .ambient-hud, .info-container', {
+    sb2Tl.to('.matrix-column, .ambient-hud, .info-container, .meteor-group', {
       x: () => (Math.random() - 0.5) * 1500,
       y: () => (Math.random() - 0.5) * 1500,
       rotationZ: () => (Math.random() - 0.5) * 180,
