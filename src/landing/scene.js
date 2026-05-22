@@ -117,6 +117,7 @@ const vertexShader = `
   uniform float uMouseIntensity;
   uniform float uArousal;
   uniform float uHackProgress;
+  uniform float uCorruptionPhase;
   
   varying vec2 vUv;
   varying vec3 vNormal;
@@ -128,12 +129,15 @@ const vertexShader = `
     vNormal = normalize(normalMatrix * normal);
     
     // Cinematic Timewarp: Slow, ominous stretch instead of rapid shaking
+    // Twitching starts when corruption reaches 0.5 (encirclement) and peaks at 1.0
+    float twitch = smoothstep(0.5, 1.0, uCorruptionPhase);
+    
     // High arousal = faster waves. Hack Progress = deep, slow distortion.
-    float noiseFreq = 1.2 + (uArousal * 0.8) - (uHackProgress * 0.5); 
-    float noiseAmp = 0.35 + (uMouseIntensity * 0.15) + (uArousal * 0.25) + (uHackProgress * 0.6);
+    float noiseFreq = 1.2 + (uArousal * 0.8) - (uHackProgress * 0.5) + (twitch * 2.0); 
+    float noiseAmp = 0.35 + (uMouseIntensity * 0.15) + (uArousal * 0.25) + (uHackProgress * 0.6) + (twitch * 0.4);
     
     // Slow down the time influence during a hack for a "Matrix bullet time" feel
-    float hackTime = uTime * (1.0 - (uHackProgress * 0.8));
+    float hackTime = uTime * (1.0 - (uHackProgress * 0.8) + (twitch * 1.5));
 
     vec3 noisePos = vec3(
       position.x * noiseFreq + hackTime * 0.2, 
@@ -148,6 +152,19 @@ const vertexShader = `
 
     // Timewarp Stretch: Pull the mesh along the Z axis based on Hack Progress
     newPosition.z += position.z * (pow(uHackProgress, 2.0) * 2.0);
+    
+    // === PHYSICAL CORRUPTION TWITCH ===
+    // As corruption intensity builds, the core violently twitches to resist
+    float glitchTrigger = smoothstep(0.4, 1.0, uCorruptionPhase);
+    if (glitchTrigger > 0.0) {
+      float glitchTime = uTime * 50.0;
+      float glitchChance = fract(sin(dot(vec2(glitchTime, position.y), vec2(12.9898, 78.233))) * 43758.5453);
+      if (glitchChance > 0.85) {
+        // Randomly displace X and Y slightly
+        newPosition.x += (fract(sin(glitchTime * 1.1) * 43758.5453) - 0.5) * 0.2 * glitchTrigger;
+        newPosition.y += (fract(cos(glitchTime * 1.3) * 43758.5453) - 0.5) * 0.2 * glitchTrigger;
+      }
+    }
     
     // Scale down slightly on scroll initially, but MASSIVELY scale up during Hack to fly-through
     float scaleMod = (1.0 - (uScroll * 0.3)) + (pow(uHackProgress, 2.0) * 8.0);
@@ -167,6 +184,7 @@ const fragmentShader = `
   uniform float uValence;
   uniform float uArousal;
   uniform float uHackProgress;
+  uniform float uCorruptionPhase;
 
   varying vec2 vUv;
   varying vec3 vNormal;
@@ -198,6 +216,18 @@ const fragmentShader = `
     // Final output combining base, fresnel
     vec3 finalColor = (baseColor + rimColor) * 1.2; 
     
+    // === ELEGANT CORRUPTION PHASE ===
+    // High frequency noise mapped to red to create tiny contamination lines
+    float corruptionNoise = fract(sin(dot(vUv * (150.0 + uTime * 0.1), vec2(12.9898, 78.233))) * 43758.5453);
+    float corruptionIntensity = smoothstep(0.8, 1.0, corruptionNoise) * uCorruptionPhase;
+    
+    // Crimson pulses that throb with time
+    float pulse = (sin(uTime * 2.0) * 0.5 + 0.5) * uCorruptionPhase;
+    vec3 subtleRed = vec3(1.0, 0.0, 0.1) * (corruptionIntensity + (pulse * 0.15));
+    
+    // Add subtle red into final color but keep blue dominant
+    finalColor = mix(finalColor, finalColor + subtleRed, uCorruptionPhase * 0.6);
+
     // === HACK OVERRIDE ===
     // Shift color to violent glowing Crimson Red
     vec3 hackCore = vec3(0.9, 0.0, 0.05);
@@ -243,6 +273,7 @@ export function initLandingScene(canvas) {
     uValence: { value: 0 },
     uArousal: { value: 0 },
     uHackProgress: { value: 0 },
+    uCorruptionPhase: { value: 0.0 }, // New: Subtle orbital corruption
     uColor1: { value: new THREE.Color(0x0a0a0f) }, // Deep dark void
     uColor2: { value: new THREE.Color(0x1a2b4c) }  // Neural blue tint
   };
@@ -284,6 +315,120 @@ export function initLandingScene(canvas) {
   const wireMesh = new THREE.Mesh(coreGeo, wireMat);
   wireMesh.scale.setScalar(1.03);
   scene.add(wireMesh);
+
+  /* ── Celestial Swarm (Floaters vs Orbiters) ── */
+  
+  // 1. Background Swarm (Floaters & Ambient Stars)
+  const celestialGeo = new THREE.BufferGeometry();
+  const celestialCount = 700; // 600 floaters + 100 ambient stars
+  const cPositions = new Float32Array(celestialCount * 3);
+  const cOriginalRadius = new Float32Array(celestialCount);
+  const cAngles = new Float32Array(celestialCount * 2);
+  const cTypes = new Float32Array(celestialCount);
+  
+  for (let i = 0; i < celestialCount; i++) {
+    const isMeteor = Math.random() > 0.14 ? 1.0 : 0.0;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos((Math.random() * 2) - 1);
+    const radius = isMeteor ? 7.0 + Math.random() * 8.0 : 9.0 + Math.random() * 12.0; 
+    
+    cOriginalRadius[i] = radius;
+    cAngles[i * 2 + 0] = theta;
+    cAngles[i * 2 + 1] = phi;
+    cTypes[i] = isMeteor;
+    cPositions[i * 3 + 0] = 0; cPositions[i * 3 + 1] = 0; cPositions[i * 3 + 2] = 0;
+  }
+  
+  celestialGeo.setAttribute('position', new THREE.BufferAttribute(cPositions, 3));
+  celestialGeo.setAttribute('aOriginalRadius', new THREE.BufferAttribute(cOriginalRadius, 1));
+  celestialGeo.setAttribute('aAngle', new THREE.BufferAttribute(cAngles, 2));
+  celestialGeo.setAttribute('aType', new THREE.BufferAttribute(cTypes, 1));
+
+  const celestialMat = new THREE.ShaderMaterial({
+    uniforms: coreUniforms,
+    vertexShader: `
+      uniform float uTime;
+      uniform float uCorruptionPhase;
+      attribute float aOriginalRadius;
+      attribute vec2 aAngle;
+      attribute float aType;
+      
+      varying float vType;
+      varying float vCorruption;
+      
+      void main() {
+        vType = aType;
+        vCorruption = uCorruptionPhase;
+        vec3 finalPos;
+        
+        if (aType > 0.5) {
+          // RED FLOATERS: Just drift slowly in the void
+          float gatherPhase = smoothstep(0.0, 0.4, uCorruptionPhase);
+          float wanderX = sin(uTime * 0.4 + aAngle.y * 10.0) * 2.0;
+          float wanderY = cos(uTime * 0.3 + aAngle.x * 10.0) * 2.0;
+          
+          float swarmRadius = mix(aOriginalRadius, 4.0 + (aOriginalRadius * 0.3), gatherPhase);
+          
+          finalPos = vec3(
+            swarmRadius * sin(aAngle.y + wanderY) * cos(aAngle.x + wanderX),
+            swarmRadius * sin(aAngle.y + wanderY) * sin(aAngle.x + wanderX),
+            swarmRadius * cos(aAngle.y + wanderY)
+          );
+        } else {
+          // BLUE AMBIENT STARS
+          finalPos = vec3(
+            aOriginalRadius * sin(aAngle.y) * cos(aAngle.x),
+            aOriginalRadius * sin(aAngle.y) * sin(aAngle.x),
+            aOriginalRadius * cos(aAngle.y)
+          );
+        }
+        
+        vec4 mvPosition = modelViewMatrix * vec4(finalPos, 1.0);
+        gl_Position = projectionMatrix * mvPosition;
+        
+        float supernovaSize = smoothstep(0.8, 0.9, uCorruptionPhase);
+        if (aType > 0.5) {
+          // Absolutely fixed size on screen. Unaffected by camera distance AND supernova scaling.
+          gl_PointSize = 7.0;
+        } else {
+          // Perspective size for ambient blue stars
+          gl_PointSize = (12.0 / -mvPosition.z) * (1.0 + supernovaSize * 5.0);
+        }
+      }
+    `,
+    fragmentShader: `
+      varying float vType;
+      varying float vCorruption;
+      void main() {
+        vec2 xy = gl_PointCoord.xy - vec2(0.5);
+        float ll = length(xy);
+        if (ll > 0.5) discard;
+        
+        float alpha = (0.5 - ll) * 2.0;
+        // Super bright neon red for visibility
+        vec3 color = vType > 0.5 ? vec3(2.5, 0.1, 0.1) : vec3(0.5, 0.7, 1.0);
+        
+        // Fast fade in for red particles (0.0 to 0.2 phase)
+        float typeAlpha = vType > 0.5 ? 
+                          smoothstep(0.0, 0.2, vCorruption) : 
+                          (1.0 - smoothstep(0.0, 0.6, vCorruption));
+                          
+        float collapse = 1.0 - smoothstep(0.8, 1.0, vCorruption);
+        
+        // Boosted final alpha multiplier for red particles
+        float finalAlpha = vType > 0.5 ? (alpha * typeAlpha * 3.0 * collapse) : (alpha * typeAlpha * 0.5);
+        if (finalAlpha <= 0.0) discard;
+        
+        gl_FragColor = vec4(color * finalAlpha, finalAlpha);
+      }
+    `,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  });
+  const celestialOrbitSystem = new THREE.Points(celestialGeo, celestialMat);
+  scene.add(celestialOrbitSystem);
+  scene.celestialOrbitSystem = celestialOrbitSystem; // Assign for animation
 
   /* ── Core Particle Shell ── */
   const pGeo = new THREE.BufferGeometry();
@@ -460,6 +605,7 @@ export function initLandingScene(canvas) {
     coreUniforms.uTime.value = time;
     coreUniforms.uScroll.value = Math.max(0, scrollProgress);
     coreUniforms.uHackProgress.value = window._visageHackProgress || 0;
+    coreUniforms.uCorruptionPhase.value = window._corruptionPhase || 0;
     coreUniforms.uMouseIntensity.value += (mouse.velocity - coreUniforms.uMouseIntensity.value) * 0.1;
 
     // Core slow rotation
@@ -537,6 +683,38 @@ export function initLandingScene(canvas) {
         m.geometry.attributes.position.needsUpdate = true;
         m.material.opacity = m.userData.life * 0.8;
       }
+    }
+
+    // Update Celestial Background Floaters
+    if (scene.celestialOrbitSystem) {
+      const uCorr = coreUniforms.uCorruptionPhase.value;
+      const positions = scene.celestialOrbitSystem.geometry.attributes.position.array;
+      for (let i = 0; i < positions.length; i += 3) {
+        let x = positions[i];
+        let y = positions[i+1];
+        let z = positions[i+2];
+        
+        // Gentle swirling
+        const dist = Math.sqrt(x*x + y*y + z*z);
+        if (dist > 3.0) { // Don't pull them inside the core
+           // Orbit around core slowly
+           const angle = Math.atan2(y, x) + 0.002;
+           const radius = Math.sqrt(x*x + y*y);
+           x = Math.cos(angle) * radius;
+           y = Math.sin(angle) * radius;
+           
+           // Slight pull towards center as corruption increases
+           const pull = uCorr * 0.05 * (1.0 - (1.0 - Math.min(dist/30.0, 1.0))); 
+           x -= (x / dist) * pull;
+           y -= (y / dist) * pull;
+           z -= (z / dist) * pull;
+           
+           positions[i] = x;
+           positions[i+1] = y;
+           positions[i+2] = z;
+        }
+      }
+      scene.celestialOrbitSystem.geometry.attributes.position.needsUpdate = true;
     }
 
     // Camera scroll behavior - dive into the scene
