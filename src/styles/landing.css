@@ -222,6 +222,11 @@
 }
 
 /* ── 01. Dimensional Empathy (Orbital Array) ── */
+.orbital-gallery-block {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
 .orbital-gallery-container {
   position: relative;
   width: 100vw;
@@ -365,6 +370,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Break out of standard story-block bounds */
+  max-width: 100vw !important;
+  padding: 0 !important;
+  /* Prevent GSAP pin-spacer calculation glitches by removing default story-block transforms */
+  transform: none !important;
 }
 
 .explodable-matrix {
@@ -389,6 +399,50 @@
   border: 1px solid rgba(100, 180, 255, 0.2);
   backdrop-filter: blur(10px);
 }
+
+/* ── Neural Environment Visuals ── */
+.neural-environment {
+  position: absolute;
+  inset: 0;
+  z-index: 1; /* Behind the info cards, but inside explodable matrix */
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.volumetric-glow {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 150vw; height: 150vh;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(20, 60, 120, 0.15) 0%, transparent 60%);
+}
+
+.orbital-rings {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 100%; height: 100%;
+  transform: translate(-50%, -50%);
+  /* Removed slow-orbit animation here because meteor-group spins itself, and we want the ring static */
+  opacity: 1; /* Was 0.3, making everything invisible! */
+}
+
+.ring {
+  fill: none;
+  stroke: rgba(100, 180, 255, 0.6);
+  stroke-width: 1.5;
+}
+.r-main {
+  stroke-dasharray: 8 16; /* Wider dashes for a premium sci-fi look */
+}
+
+.meteor-group {
+  /* Using native SVG animateTransform in HTML for perfect cross-browser circular rotation */
+}
+
+/* Meteor rendering is now fully handled by layered native SVG <circle> elements in index.html to bypass CSS filter clipping bugs */
+
+@keyframes slow-orbit { 100% { transform: translate(-50%, -50%) rotate(360deg); } }
+@keyframes meteor-orbit { 100% { transform: rotate(360deg); } }
 
 .ambient-ui-filler {
   position: absolute;
