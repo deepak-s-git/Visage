@@ -110,13 +110,13 @@ export function initKineticGrid(canvasId) {
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       // Mouse repulsion/attraction force
-      if (dist < mouseRadius) {
-        const force = (mouseRadius - dist) / mouseRadius;
+      if (dist < 200) { // Reduced from 300 to prevent massive holes
+        const force = (200 - dist) / 200;
         const angle = Math.atan2(dy, dx);
         
-        // Push points away, and also follow mouse velocity slightly
-        const pushX = Math.cos(angle) * force * -30 * intensity + mouse.vx * force * 10;
-        const pushY = Math.sin(angle) * force * -30 * intensity + mouse.vy * force * 10;
+        // Push points away, but much softer (-10 instead of -30) so it doesn't form hard geometric shapes
+        const pushX = Math.cos(angle) * force * -10 * intensity + mouse.vx * force * 5;
+        const pushY = Math.sin(angle) * force * -10 * intensity + mouse.vy * force * 5;
         
         p.vx += pushX * 0.1;
         p.vy += pushY * 0.1;
