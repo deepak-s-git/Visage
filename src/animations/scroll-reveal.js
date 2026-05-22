@@ -4,9 +4,26 @@
    ═══════════════════════════════════════════════════════════════ */
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import Lenis from 'lenis';
 import { setLandingActive, setAudioScrollProgress } from '../audio/ambient.js';
 
 gsap.registerPlugin(ScrollTrigger);
+
+// Initialize Lenis for heavy, dense, cinematic scroll inertia
+const lenis = new Lenis({
+  lerp: 0.1,            // Lighter, more responsive smoothing (feels natural but cinematic)
+  wheelMultiplier: 0.8, // Fast enough to be comfortable, but slightly throttled to prevent massive jumps
+  smoothWheel: true,
+  syncTouch: true,
+  touchMultiplier: 1.5, 
+});
+
+// Synchronize Lenis with GSAP ScrollTrigger perfectly
+lenis.on('scroll', ScrollTrigger.update);
+gsap.ticker.add((time) => {
+  lenis.raf(time * 1000);
+});
+gsap.ticker.lagSmoothing(0);
 
 let landingScene = null;
 
@@ -82,10 +99,10 @@ export function initScrollReveal() {
     scrollTrigger: {
       trigger: '.landing',
       start: 'top top',
-      end: '+=80%',
+      end: '+=80%', // Restored smooth, slow fade distance
       scrub: 0.5,
       pin: true,
-      pinSpacing: true,
+      pinSpacing: false, // CRITICAL: Removes the gap entirely by letting the next section slide up over it immediately
       onUpdate: (self) => {
         window._landingSectionProgress = self.progress;
       }
@@ -113,50 +130,50 @@ export function initScrollReveal() {
       scrollTrigger: {
         trigger: sb1,
         start: 'top top', // Pin the section when it reaches the top
-        end: '+=250%',   // Hold the scroll for 250% viewport height for cinematic pacing
+        end: '+=400%',   // Massively increased scroll duration for ultra-smooth transition
         scrub: 1.5,
         pin: true,
         pinSpacing: true
       }
     });
 
-    // Make the main center card fade in and scale up first
+    // Make the main center card slowly fade in and drift significantly towards the camera
     sb1Tl.fromTo('.o-card-0', 
-      { opacity: 0, scale: 0.8 },
-      { opacity: 1, scale: 1, duration: 0.5, ease: 'power2.out' }, 
+      { opacity: 0, scale: 0.4 }, // Starts far away
+      { opacity: 1, scale: 1.8, duration: 2.0, ease: 'power1.inOut' }, // Comes very close smoothly
     0);
 
     // Animate the 4 side cards symmetrically flying outwards from the core
     // Top Left
     sb1Tl.fromTo('.o-card-1', 
       { opacity: 0, z: -500, rotationY: -10, x: '-10vw', y: '-10vh' },
-      { opacity: 1, z: 0, rotationY: 15, x: '-32vw', y: '-30vh', duration: 1, ease: 'power3.out' }, 
+      { opacity: 1, z: 0, rotationY: 15, x: '-32vw', y: '-30vh', duration: 1.5, ease: 'power2.out' }, 
     0.2);
     // Top Right
     sb1Tl.fromTo('.o-card-2', 
       { opacity: 0, z: -500, rotationY: 10, x: '10vw', y: '-10vh' },
-      { opacity: 1, z: 0, rotationY: -15, x: '32vw', y: '-30vh', duration: 1, ease: 'power3.out' }, 
+      { opacity: 1, z: 0, rotationY: -15, x: '32vw', y: '-30vh', duration: 1.5, ease: 'power2.out' }, 
     0.2);
     // Bottom Left
     sb1Tl.fromTo('.o-card-3', 
       { opacity: 0, z: -500, rotationY: -10, x: '-10vw', y: '10vh' },
-      { opacity: 1, z: 0, rotationY: 15, x: '-32vw', y: '30vh', duration: 1, ease: 'power3.out' }, 
+      { opacity: 1, z: 0, rotationY: 15, x: '-32vw', y: '30vh', duration: 1.5, ease: 'power2.out' }, 
     0.4);
     // Bottom Right
     sb1Tl.fromTo('.o-card-4', 
       { opacity: 0, z: -500, rotationY: 10, x: '10vw', y: '10vh' },
-      { opacity: 1, z: 0, rotationY: -15, x: '32vw', y: '30vh', duration: 1, ease: 'power3.out' }, 
+      { opacity: 1, z: 0, rotationY: -15, x: '32vw', y: '30vh', duration: 1.5, ease: 'power2.out' }, 
     0.4);
 
-    // --- Cinematic Exit Animation (Triggered as user keeps scrolling) ---
-    // Cards hold position for a moment, then fly aggressively past the camera to clear the screen
-    sb1Tl.to('.o-card-1', { z: 1500, x: '-60vw', y: '-60vh', rotationY: 45, opacity: 0, duration: 1.5, ease: 'expo.in' }, 2.0);
-    sb1Tl.to('.o-card-2', { z: 1500, x: '60vw', y: '-60vh', rotationY: -45, opacity: 0, duration: 1.5, ease: 'expo.in' }, 2.0);
-    sb1Tl.to('.o-card-3', { z: 1500, x: '-60vw', y: '60vh', rotationY: 45, opacity: 0, duration: 1.5, ease: 'expo.in' }, 2.0);
-    sb1Tl.to('.o-card-4', { z: 1500, x: '60vw', y: '60vh', rotationY: -45, opacity: 0, duration: 1.5, ease: 'expo.in' }, 2.0);
+    // --- Cinematic Exit Animation (Triggered as user transitions to next section) ---
+    // Smoothly fly aggressively past the camera to clear the screen
+    sb1Tl.to('.o-card-1', { z: 1500, x: '-80vw', y: '-80vh', rotationY: 45, opacity: 0, duration: 1.5, ease: 'power2.in' }, 2.0);
+    sb1Tl.to('.o-card-2', { z: 1500, x: '80vw', y: '-80vh', rotationY: -45, opacity: 0, duration: 1.5, ease: 'power2.in' }, 2.0);
+    sb1Tl.to('.o-card-3', { z: 1500, x: '-80vw', y: '80vh', rotationY: 45, opacity: 0, duration: 1.5, ease: 'power2.in' }, 2.0);
+    sb1Tl.to('.o-card-4', { z: 1500, x: '80vw', y: '80vh', rotationY: -45, opacity: 0, duration: 1.5, ease: 'power2.in' }, 2.0);
     
-    // Center card zooms straight into the viewer
-    sb1Tl.to('.o-card-0', { scale: 4.0, opacity: 0, duration: 1.5, ease: 'expo.in' }, 2.0);
+    // Center card zooms completely past the viewer into oblivion
+    sb1Tl.to('.o-card-0', { scale: 10.0, opacity: 0, duration: 1.5, ease: 'power2.in' }, 2.0);
   }
 
   // 3. Custom reveal & Core Hack for Story Block 2
@@ -247,52 +264,51 @@ export function initScrollReveal() {
     2.5);
 
 
-    // --- Core Hack / Disintegration (Pinned) ---
-    const sb2Tl = gsap.timeline({
+    // --- Cinematic 8-Phase Orbital Corruption Sequence (Pinned) ---
+    // Make sure we initialize the corruption phase
+    window._corruptionPhase = 0;
+    window._visageHackProgress = 0;
+
+    const corruptionTl = gsap.timeline({
       scrollTrigger: {
         trigger: sb2,
         start: 'top top',
-        end: '+=400%',
-        scrub: 1,
+        end: '+=300%', // Reduced from 500% now that Lenis manages scroll speed
+        scrub: 1.5,
         pin: true,
         pinSpacing: true
       }
     });
 
-    // Phase 1: Disintegrate the matrix wrapper (0.0 to 1.0 on timeline)
-    sb2Tl.to('.explodable-matrix', {
-      scale: 3.0,
-      filter: 'blur(30px)',
+    // Phase 1: Hold the cards so the user can read them! Then fade them out.
+    corruptionTl.to('.matrix-info-cards, .orbital-rings', {
       opacity: 0,
-      duration: 1,
-      ease: 'power3.in'
-    }, 0);
-    
-    sb2Tl.to('.matrix-column, .ambient-hud, .info-container, .meteor-group', {
-      x: () => (Math.random() - 0.5) * 1500,
-      y: () => (Math.random() - 0.5) * 1500,
-      rotationZ: () => (Math.random() - 0.5) * 180,
-      opacity: 0,
-      stagger: 0.05,
-      duration: 1,
-      ease: 'power3.in'
-    }, 0);
-
-    // Phase 2: The Plunge / Hack Override (0.5 to 2.5 on timeline)
-    // Feeds directly into scene.js uHackProgress
-    sb2Tl.to(window, {
-      _visageHackProgress: 1.0,
-      duration: 2,
+      filter: 'blur(20px)',
+      duration: 1.5,
       ease: 'power2.inOut'
-    }, 0.5);
+    }, 2.0); // Starts fading at 2.0 instead of 0
 
-    // Phase 3: The Interior Reveal (2.5 to 3.5 on timeline)
-    sb2Tl.to('.hacked-core-interior', {
+    // Phase 2: The entire corruption sequence
+    corruptionTl.to(window, {
+      _corruptionPhase: 1.0,
+      duration: 8.5, 
+      ease: 'power1.inOut'
+    }, 2.0); // Starts at 2.0, precisely as the cards start fading!
+
+    // Phase 3: The Plunge (Hack Progress Zoom)
+    corruptionTl.to(window, {
+      _visageHackProgress: 1.0,
+      duration: 1.5,
+      ease: 'expo.inOut' // Aggressive magnetic pull at the very end
+    }, 11.5);
+
+    // The Interior Reveal
+    corruptionTl.to('.hacked-core-interior', {
       opacity: 1,
       pointerEvents: 'auto',
-      duration: 1,
+      duration: 1.0,
       ease: 'power2.out'
-    }, 2.5);
+    }, 14.0);
   }
 
   // 4. Generic reveal for remaining story blocks
