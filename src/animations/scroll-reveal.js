@@ -278,7 +278,7 @@ export function initScrollReveal() {
       scrollTrigger: {
         trigger: sb2,
         start: 'top top',
-        end: '+=700%', // Massively extended so you spend a long time inside the core!
+        end: '+=500%', // Reduced from 700% for better pacing, but still highly cinematic
         scrub: 1.5,
         pin: true,
         pinSpacing: true
@@ -307,7 +307,8 @@ export function initScrollReveal() {
       ease: 'expo.inOut' // Aggressive magnetic pull at the very end
     }, 11.5);
 
-    // The Interior Reveal
+    // The Interior Reveal - start this slightly EARLIER to overlap the plunge
+    // The plunge ends at 13.0 (11.5 + 1.5). Start this at 11.8 to kill the blank gap.
     corruptionTl.to('.hacked-core-interior', {
       opacity: 1,
       pointerEvents: 'auto',
@@ -317,29 +318,83 @@ export function initScrollReveal() {
         if(matrixRainEffect) matrixRainEffect.start();
       },
       onReverseComplete: () => {
+        // Stop canvas animation only when scrolling back up to the intro
         if(matrixRainEffect) matrixRainEffect.stop();
       }
-    }, 14.0);
+    }, 11.8);
     
     // Matrix Rain Fade In
     corruptionTl.to('.matrix-rain-canvas', {
       opacity: 0.8,
-      duration: 1.5
-    }, 14.5);
-
-    // Corrupted Terminal Fade In
-    corruptionTl.to('.corrupted-terminal', {
-      opacity: 1,
       duration: 1.0
-    }, 15.0);
+    }, 11.8);
 
-    // Hold the interior for a very long time so the user can enjoy the rain
-    corruptionTl.to({}, { duration: 15.0 }); // Empty tween to pad timeline
+    // Cascading System Crash UI
+    // Windows pop up aggressively one by one as the user scrolls
+    corruptionTl.fromTo('.cw-1', { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 1.0 }, 12.5);
+    corruptionTl.fromTo('.cw-5', { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.8 }, 13.5);
+    corruptionTl.fromTo('.cw-2', { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.8 }, 14.2);
+    corruptionTl.fromTo('.cw-6', { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.8 }, 15.0);
+    corruptionTl.fromTo('.cw-3', { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.8 }, 15.8);
+    corruptionTl.fromTo('.cw-7', { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.8 }, 16.5);
+    corruptionTl.fromTo('.cw-4', { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.8 }, 17.5);
+
+    // Fade in the Proceed cue after all windows are up
+    corruptionTl.to('.crash-scroll-cue', {
+      opacity: 1,
+      duration: 0.8
+    }, 18.5);
+
+    // Hold the final state briefly so the user can read it
+    corruptionTl.to({}, { duration: 3.0 }); 
+    
+    // LITERAL CHARACTER DISSOLVE
+    // Phase 1: The solid UI frames and text disappear, revealing the raw matrix characters underneath
+    corruptionTl.to('.crash-window', {
+      background: 'transparent',
+      borderColor: 'transparent',
+      boxShadow: 'none',
+      duration: 0.5,
+      stagger: 0
+    }, '+=0');
+    
+    corruptionTl.to('.cw-header, .cw-body', {
+      opacity: 0,
+      duration: 0.5,
+      stagger: 0
+    }, '<');
+
+    corruptionTl.to('.cw-matrix-bg', {
+      opacity: 1,
+      duration: 0.5,
+      stagger: 0
+    }, '<');
+
+    // Phase 2: The pure blocks of matrix characters plummet down the screen into the rain
+    corruptionTl.to('.crash-window', {
+      y: 1500,
+      opacity: 0, // Fades out as they fall deeper
+      filter: 'blur(3px)', // Motion blur
+      stagger: {
+        amount: 0.8,
+        from: "random" // Falling at random times
+      },
+      duration: 3.0,
+      ease: 'power3.in' // Accelerating gravity
+    }, '+=0');
+
+    // Fade the scroll cue out smoothly alongside it
+    corruptionTl.to('.crash-scroll-cue', {
+      y: 200,
+      opacity: 0,
+      filter: "blur(10px)",
+      duration: 1.0
+    }, '<');
   }
 
   // 4. Generic reveal for remaining story blocks
   gsap.utils.toArray('.story-block').forEach((block) => {
-    if (block.id === 'story-block-1' || block.id === 'story-block-2') return; // Handled custom above
+    if (block.id === 'story-block-1' || block.id === 'story-block-2' || block.id === 'story-block-3') return; // Handled custom
     
     gsap.to(block, {
       scrollTrigger: {
@@ -354,7 +409,38 @@ export function initScrollReveal() {
     });
   });
 
-  // 3. Orb Gateway reveal
+  // 5. Custom pinned reveal for Aural Synthesis Chamber
+  const sb3 = document.getElementById('story-block-3');
+  if (sb3) {
+    const sb3Tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: sb3,
+        start: 'center center', // Pin when it hits the exact center
+        end: '+=400%', // Lots of space for future aural synthesis interactive content
+        scrub: 1.5,
+        pin: true,
+        pinSpacing: true
+      }
+    });
+
+    // Fade the section in as it approaches the center
+    gsap.fromTo(sb3, 
+      { opacity: 0, y: 100 },
+      { 
+        opacity: 1, 
+        y: 0, 
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: sb3,
+          start: 'top 80%',
+          end: 'center center',
+          scrub: 1.5
+        }
+      }
+    );
+  }
+
+  // 6. Orb Gateway reveal
   gsap.to('.gateway-content', {
     scrollTrigger: {
       trigger: '.orb-gateway',
