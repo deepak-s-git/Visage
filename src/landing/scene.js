@@ -403,6 +403,7 @@ export function initLandingScene(canvas) {
     fragmentShader: `
       varying float vType;
       varying float vCorruption;
+      uniform float uHackProgress;
       void main() {
         vec2 xy = gl_PointCoord.xy - vec2(0.5);
         float ll = length(xy);
@@ -419,8 +420,13 @@ export function initLandingScene(canvas) {
                           
         float collapse = 1.0 - smoothstep(0.8, 1.0, vCorruption);
         
-        // Boosted final alpha multiplier for red particles
+        // Base final alpha
         float finalAlpha = vType > 0.5 ? (alpha * typeAlpha * 3.0 * collapse) : (alpha * typeAlpha * 0.5);
+        
+        // The user explicitly requested NO particles inside the core.
+        // Fade everything out as uHackProgress goes from 0.0 to 0.2
+        finalAlpha = mix(finalAlpha, 0.0, smoothstep(0.0, 0.2, uHackProgress));
+
         if (finalAlpha <= 0.0) discard;
         
         gl_FragColor = vec4(color * finalAlpha, finalAlpha);
