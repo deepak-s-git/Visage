@@ -238,7 +238,7 @@ const fragmentShader = `
     // Core should remain strongly visible during scroll, pulse slightly based on arousal
     // Fade out completely as the camera passes through the wall (HackProgress -> 1)
     float alpha = clamp(0.95 + (uArousal * 0.1) - (uScroll * 0.1), 0.0, 1.0);
-    alpha = mix(alpha, 0.0, pow(uHackProgress, 4.0)); // Fade out at the very end of the dive
+    alpha = mix(alpha, 0.0, smoothstep(0.0, 0.5, uHackProgress)); // Fade out completely before passing through the near clipping plane
     
     gl_FragColor = vec4(finalColor, alpha);
   }
@@ -298,11 +298,15 @@ export function initLandingScene(canvas) {
     vertexShader,
     fragmentShader: `
       uniform float uScroll;
+      uniform float uHackProgress;
       varying float vNoise;
       void main() {
         // High-contrast cyan/blue neural energy
         vec3 color = mix(vec3(0.0, 0.2, 0.4), vec3(0.6, 0.9, 1.0), vNoise * 0.5 + 0.5);
-        gl_FragColor = vec4(color, 0.25); // Keeps wireframe visible during scroll
+        // Fade out completely as camera dives inside the core
+        float alpha = 0.25 * (1.0 - smoothstep(0.0, 0.5, uHackProgress));
+        if (alpha <= 0.0) discard;
+        gl_FragColor = vec4(color, alpha);
       }
     `,
     uniforms: coreUniforms,
