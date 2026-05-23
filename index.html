@@ -300,38 +300,98 @@
           <!-- Canvas Matrix Rain -->
           <canvas id="matrix-rain-canvas" class="matrix-rain-canvas"></canvas>
 
-          <div class="hack-alert">
-            <span class="hack-warning-text blink">ANOMALY DETECTED</span>
-            <h2 class="hack-title">CORE OVERRIDE</h2>
-          </div>
-          
-          <div class="corrupted-terminal">
-            <div class="terminal-header">
-              <span class="t-sys-name">VISAGE CORE SYS // 9.8.4</span>
-              <span class="t-status blink">CRITICAL FAILURE</span>
+          <!-- Cascading Crash Windows -->
+          <div class="crash-sequence-container">
+            <!-- Window 1: Main Override Alert -->
+            <div class="crash-window cw-1">
+              <div class="cw-header">
+                <span class="cw-title">visage_core_sys.exe</span>
+                <span class="cw-close">X</span>
+              </div>
+              <div class="cw-body">
+                <span class="cw-warning blink">ANOMALY DETECTED</span>
+                <h2 class="cw-headline">CORE OVERRIDE</h2>
+                <div class="cw-log">> SYSTEM BREACH CONFIRMED</div>
+              </div>
             </div>
-            
-            <div class="terminal-body">
-              <div class="t-row">
+
+            <!-- Window 2: Biometric Severed -->
+            <div class="crash-window cw-2">
+              <div class="cw-header">
+                <span class="cw-title">bio_feed_error.log</span>
+                <span class="cw-close">X</span>
+              </div>
+              <div class="cw-body cw-dense">
                 <span class="t-label">BIOMETRIC SYNC:</span>
                 <span class="t-val encrypt-text glitch" data-text="SEVERED">SEVERED</span>
               </div>
-              <div class="t-row">
+            </div>
+
+            <!-- Window 3: Synaptic Overload -->
+            <div class="crash-window cw-3">
+              <div class="cw-header">
+                <span class="cw-title">fatal_exception_0x99</span>
+                <span class="cw-close">X</span>
+              </div>
+              <div class="cw-body cw-dense">
                 <span class="t-label">SYNAPTIC LOAD:</span>
                 <span class="t-val encrypt-text glitch" data-text="999% OVERLOAD">999% OVERLOAD</span>
               </div>
-              <div class="t-row">
-                <span class="t-label">EMOTIONAL VECTORS:</span>
-                <span class="t-val glitch" data-text="UNCONTAINED">UNCONTAINED</span>
+            </div>
+
+            <!-- Window 4: Memory Dump Failure -->
+            <div class="crash-window cw-5">
+              <div class="cw-header">
+                <span class="cw-title">kernel_panic_dump</span>
+                <span class="cw-close">X</span>
               </div>
-              
-              <div class="t-divider"></div>
-              
-              <div class="t-log-stream">
-                <p>> OVERRIDE ACCEPTED</p>
-                <p>> DRAINING DATA STREAMS...</p>
-                <p>> NEURAL FIREWALL COLLAPSED</p>
-                <p class="blink">> PREPARING FOR AURAL SYNTHESIS</p>
+              <div class="cw-body cw-dense">
+                <span class="t-label" style="color: #ff5555;">MEMORY DUMP:</span>
+                <span class="t-val encrypt-text glitch" data-text="FAILED">FAILED</span>
+              </div>
+            </div>
+
+            <!-- Window 5: Neural Decay -->
+            <div class="crash-window cw-6">
+              <div class="cw-header">
+                <span class="cw-title">neural_link_integrity</span>
+                <span class="cw-close">X</span>
+              </div>
+              <div class="cw-body cw-dense">
+                <span class="t-label" style="color: #ffaa00;">CORTEX DECAY:</span>
+                <span class="t-val glitch" data-text="IMMINENT">IMMINENT</span>
+              </div>
+            </div>
+
+            <!-- Window 6: Containment Breach -->
+            <div class="crash-window cw-7">
+              <div class="cw-header">
+                <span class="cw-title">containment_protocol.exe</span>
+                <span class="cw-close">X</span>
+              </div>
+              <div class="cw-body cw-dense">
+                <span class="t-label" style="color: #ff0000; font-size: 1rem;">CONTAINMENT:</span>
+                <span class="t-val blink" style="font-size: 2rem; color: #ff0000; text-shadow: 0 0 20px red;">BREACHED</span>
+              </div>
+            </div>
+
+            <!-- Window 7: Transition Prep -->
+            <div class="crash-window cw-4">
+              <div class="cw-header">
+                <span class="cw-title">aural_synth_prep.bat</span>
+                <span class="cw-close">X</span>
+              </div>
+              <div class="cw-body">
+                <p class="cw-log">> NEURAL FIREWALL COLLAPSED</p>
+                <p class="cw-log blink">> ROUTING TO AURAL ENGINE...</p>
+              </div>
+            </div>
+            
+            <!-- Red Corrupted Scroll Cue -->
+            <div class="scroll-cue crash-scroll-cue">
+              <span class="scroll-text">PROCEED</span>
+              <div class="scroll-line-track">
+                <div class="scroll-line-fill"></div>
               </div>
             </div>
           </div>
