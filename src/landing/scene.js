@@ -410,7 +410,7 @@ export function initLandingScene(canvas) {
         if (ll > 0.5) discard;
         
         float alpha = (0.5 - ll) * 2.0;
-        // Super bright neon red for visibility
+        // Base color
         vec3 color = vType > 0.5 ? vec3(2.5, 0.1, 0.1) : vec3(0.5, 0.7, 1.0);
         
         // Fast fade in for red particles (0.0 to 0.2 phase)
@@ -423,9 +423,8 @@ export function initLandingScene(canvas) {
         // Base final alpha
         float finalAlpha = vType > 0.5 ? (alpha * typeAlpha * 3.0 * collapse) : (alpha * typeAlpha * 0.5);
         
-        // The user explicitly requested NO particles inside the core.
-        // Fade everything out as uHackProgress goes from 0.0 to 0.2
-        finalAlpha = mix(finalAlpha, 0.0, smoothstep(0.0, 0.2, uHackProgress));
+        // Fade out ALL particles when plunging into the core
+        finalAlpha = mix(finalAlpha, 0.0, smoothstep(0.0, 0.4, uHackProgress));
 
         if (finalAlpha <= 0.0) discard;
         
