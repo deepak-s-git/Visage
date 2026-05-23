@@ -281,7 +281,7 @@ export function initScrollReveal() {
     });
 
     // Phase 1: Hold the cards so the user can read them! Then fade them out.
-    corruptionTl.to('.matrix-info-cards, .orbital-rings', {
+    corruptionTl.to('.matrix-info-cards, .ambient-ui-filler, .orbital-rings', {
       opacity: 0,
       filter: 'blur(20px)',
       duration: 1.5,
