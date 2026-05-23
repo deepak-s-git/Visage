@@ -297,34 +297,42 @@
 
         <!-- Post-hack Inner Core Space -->
         <div class="hacked-core-interior">
-          <!-- Red Matrix Rain -->
-          <div class="red-matrix-rain">
-            <div class="red-stream rs-1"></div>
-            <div class="red-stream rs-2"></div>
-            <div class="red-stream rs-3"></div>
-            <div class="red-stream rs-4"></div>
-            <div class="red-stream rs-5"></div>
-            <div class="red-stream rs-6"></div>
-            <div class="red-stream rs-7"></div>
-          </div>
+          <!-- Canvas Matrix Rain -->
+          <canvas id="matrix-rain-canvas" class="matrix-rain-canvas"></canvas>
 
           <div class="hack-alert">
             <span class="hack-warning-text blink">ANOMALY DETECTED</span>
             <h2 class="hack-title">CORE OVERRIDE</h2>
           </div>
           
-          <div class="hack-data-nodes">
-            <div class="hack-node">
-              <span class="h-label">BIOMETRIC FEED</span>
-              <span class="h-val encrypt-text">ERR_UNSTABLE</span>
+          <div class="corrupted-terminal">
+            <div class="terminal-header">
+              <span class="t-sys-name">VISAGE CORE SYS // 9.8.4</span>
+              <span class="t-status blink">CRITICAL FAILURE</span>
             </div>
-            <div class="hack-node">
-              <span class="h-label">SYNAPTIC LOAD</span>
-              <span class="h-val encrypt-text">CRITICAL MASS</span>
-            </div>
-            <div class="hack-node">
-              <span class="h-label">SYSTEM STATE</span>
-              <span class="h-val encrypt-text">BREACHED</span>
+            
+            <div class="terminal-body">
+              <div class="t-row">
+                <span class="t-label">BIOMETRIC SYNC:</span>
+                <span class="t-val encrypt-text glitch" data-text="SEVERED">SEVERED</span>
+              </div>
+              <div class="t-row">
+                <span class="t-label">SYNAPTIC LOAD:</span>
+                <span class="t-val encrypt-text glitch" data-text="999% OVERLOAD">999% OVERLOAD</span>
+              </div>
+              <div class="t-row">
+                <span class="t-label">EMOTIONAL VECTORS:</span>
+                <span class="t-val glitch" data-text="UNCONTAINED">UNCONTAINED</span>
+              </div>
+              
+              <div class="t-divider"></div>
+              
+              <div class="t-log-stream">
+                <p>> OVERRIDE ACCEPTED</p>
+                <p>> DRAINING DATA STREAMS...</p>
+                <p>> NEURAL FIREWALL COLLAPSED</p>
+                <p class="blink">> PREPARING FOR AURAL SYNTHESIS</p>
+              </div>
             </div>
           </div>
         </div>
