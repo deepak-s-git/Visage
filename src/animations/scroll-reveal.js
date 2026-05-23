@@ -6,6 +6,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 import { setLandingActive, setAudioScrollProgress } from '../audio/ambient.js';
+import { initMatrixRain } from './matrix-rain.js';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -26,6 +27,7 @@ gsap.ticker.add((time) => {
 gsap.ticker.lagSmoothing(0);
 
 let landingScene = null;
+let matrixRainEffect = null;
 
 /** Store a reference to the Three.js scene for scroll-driven updates */
 export function setLandingScene(scene) {
@@ -94,6 +96,9 @@ export function playLandingIntro() {
 
 /** Set up scroll-driven transitions from landing → story journey */
 export function initScrollReveal() {
+  // Initialize matrix rain canvas
+  matrixRainEffect = initMatrixRain('matrix-rain-canvas');
+
   // 1. Landing content fades out on scroll
   const landingTl = gsap.timeline({
     scrollTrigger: {
@@ -273,7 +278,7 @@ export function initScrollReveal() {
       scrollTrigger: {
         trigger: sb2,
         start: 'top top',
-        end: '+=300%', // Reduced from 500% now that Lenis manages scroll speed
+        end: '+=700%', // Massively extended so you spend a long time inside the core!
         scrub: 1.5,
         pin: true,
         pinSpacing: true
@@ -307,8 +312,29 @@ export function initScrollReveal() {
       opacity: 1,
       pointerEvents: 'auto',
       duration: 1.0,
-      ease: 'power2.out'
+      ease: 'power2.out',
+      onStart: () => {
+        if(matrixRainEffect) matrixRainEffect.start();
+      },
+      onReverseComplete: () => {
+        if(matrixRainEffect) matrixRainEffect.stop();
+      }
     }, 14.0);
+    
+    // Matrix Rain Fade In
+    corruptionTl.to('.matrix-rain-canvas', {
+      opacity: 0.8,
+      duration: 1.5
+    }, 14.5);
+
+    // Corrupted Terminal Fade In
+    corruptionTl.to('.corrupted-terminal', {
+      opacity: 1,
+      duration: 1.0
+    }, 15.0);
+
+    // Hold the interior for a very long time so the user can enjoy the rain
+    corruptionTl.to({}, { duration: 15.0 }); // Empty tween to pad timeline
   }
 
   // 4. Generic reveal for remaining story blocks
