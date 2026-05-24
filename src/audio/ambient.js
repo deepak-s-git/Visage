@@ -5,61 +5,53 @@
 
 import { gsap } from 'gsap';
 
-const AUDIO_SRC = '/assets/audio/WuWa OST.mp3';
-const MAX_VOLUME = 0.22;
-const FADE_DURATION = 1.8;
+const WUWA_SRC = '/assets/audio/WuWa OST.mp3';
+const TRON_SRC = '/assets/audio/TRON.mp3';
+const MAX_VOLUME = 0.65; // Increased significantly for more impact
 const STORAGE_KEY = 'visage-audio-muted';
 
 let audioCtx = null;
-let gainNode = null;
-let sourceNode = null;
-let audioBuffer = null;
 let isMuted = false;
-let isInLanding = true;
 let isPlaying = false;
-let startTime = 0;      // AudioContext time when playback began
-let pauseOffset = 0;     // Seconds into track when paused
+let globalMasterGain = null;
 
-let fetchPromise = null;
+// Track 1: WuWa
+let wuwaGain = null;
+let wuwaFilter = null;
+let wuwaSource = null;
+let wuwaBuffer = null;
+let wuwaTargetVolume = MAX_VOLUME;
 
-let filterNode = null;
+// Track 2: TRON
+let tronGain = null;
+let tronFilter = null;
+let tronBassBoost = null; // New bass EQ
+let tronSource = null;
+let tronBuffer = null;
+let tronTargetVolume = 0.0;
 
-/* ── Initialise: called at absolute first frame ── */
+let wuwaFetch = null;
+let tronFetch = null;
+
 export function initAmbientAudio() {
   isMuted = localStorage.getItem(STORAGE_KEY) === 'true';
   injectMuteButton();
 
-  // Pre-fetch audio buffer immediately
-  fetchPromise = fetch(AUDIO_SRC)
-    .then(r => r.arrayBuffer())
-    .then(buf => {
-      // Store raw buffer, decode later when context exists
-      window.__visageAudioRaw = buf;
-      return buf;
-    })
-    .catch(() => null);
+  // Pre-fetch both buffers immediately
+  wuwaFetch = fetch(WUWA_SRC).then(r => r.arrayBuffer()).catch(() => null);
+  tronFetch = fetch(TRON_SRC).then(r => r.arrayBuffer()).catch(() => null);
 }
 
-/* ── Attempt autoplay — returns a promise that resolves when audio is playing ── */
 export function attemptAutoplay() {
   return new Promise(async (resolve) => {
     if (isMuted) { resolve('muted'); return; }
 
     try {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      
-      gainNode = audioCtx.createGain();
-      gainNode.gain.value = 0;
-      
-      filterNode = audioCtx.createBiquadFilter();
-      filterNode.type = 'lowpass';
-      filterNode.frequency.value = 800; // Muffled atmospheric start
-
-      filterNode.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
+      setupAudioGraph();
 
       if (audioCtx.state === 'running') {
-        await decodeAndPlay();
+        await decodeAndPlayAll();
         resolve('autoplay');
       } else {
         resolve('blocked');
@@ -70,86 +62,158 @@ export function attemptAutoplay() {
   });
 }
 
-/* ── Start playback after user gesture (for blocked browsers) ── */
 export async function startAfterGesture(delaySeconds = 0) {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    
-    gainNode = audioCtx.createGain();
-    gainNode.gain.value = 0;
-    
-    filterNode = audioCtx.createBiquadFilter();
-    filterNode.type = 'lowpass';
-    filterNode.frequency.value = 800;
-
-    filterNode.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
+    setupAudioGraph();
   }
   await audioCtx.resume();
-  await decodeAndPlay(delaySeconds);
+  await decodeAndPlayAll(delaySeconds);
 }
 
-/* ── Decode buffer and start playback ── */
-async function decodeAndPlay(delaySeconds = 0) {
+function setupAudioGraph() {
+  globalMasterGain = audioCtx.createGain();
+  globalMasterGain.connect(audioCtx.destination);
+  globalMasterGain.gain.value = isMuted ? 0 : 1;
+
+  // WuWa Graph
+  wuwaGain = audioCtx.createGain();
+  wuwaGain.gain.value = 0;
+  wuwaFilter = audioCtx.createBiquadFilter();
+  wuwaFilter.type = 'lowpass';
+  wuwaFilter.frequency.value = 800; // Muffled atmospheric start
+  wuwaFilter.connect(wuwaGain);
+  wuwaGain.connect(globalMasterGain);
+
+  // TRON Graph
+  tronGain = audioCtx.createGain();
+  tronGain.gain.value = 0;
+  
+  // Cinematic Bass Boost
+  tronBassBoost = audioCtx.createBiquadFilter();
+  tronBassBoost.type = 'lowshelf';
+  tronBassBoost.frequency.value = 120; // Target sub/punch frequencies
+  tronBassBoost.gain.value = 6;        // +6dB of thick bass
+  
+  tronFilter = audioCtx.createBiquadFilter();
+  tronFilter.type = 'lowpass';
+  tronFilter.frequency.value = 20000; // Starts clear
+  
+  tronFilter.connect(tronBassBoost);
+  tronBassBoost.connect(tronGain);
+  tronGain.connect(globalMasterGain);
+}
+
+async function decodeAndPlayAll(delaySeconds = 0) {
   if (isPlaying || isMuted) return;
 
   try {
-    let raw = window.__visageAudioRaw;
-    if (!raw && fetchPromise) {
-      raw = await fetchPromise;
-    }
-    if (!raw) return;
+    const [wuwaRaw, tronRaw] = await Promise.all([wuwaFetch, tronFetch]);
+    if (!wuwaRaw || !tronRaw) return;
 
-    audioBuffer = await audioCtx.decodeAudioData(raw.slice(0));
+    wuwaBuffer = await audioCtx.decodeAudioData(wuwaRaw.slice(0));
+    tronBuffer = await audioCtx.decodeAudioData(tronRaw.slice(0));
 
-    sourceNode = audioCtx.createBufferSource();
-    sourceNode.buffer = audioBuffer;
-    sourceNode.loop = true;
-    sourceNode.connect(filterNode); // Connect to filter instead of gain
+    // Start WuWa
+    wuwaSource = audioCtx.createBufferSource();
+    wuwaSource.buffer = wuwaBuffer;
+    wuwaSource.loop = true;
+    wuwaSource.connect(wuwaFilter);
+    wuwaSource.start(audioCtx.currentTime + delaySeconds);
 
-    sourceNode.start(audioCtx.currentTime + delaySeconds, pauseOffset);
-    startTime = audioCtx.currentTime + delaySeconds - pauseOffset;
+    // Start TRON
+    tronSource = audioCtx.createBufferSource();
+    tronSource.buffer = tronBuffer;
+    tronSource.loop = true;
+    tronSource.connect(tronFilter);
+    tronSource.start(audioCtx.currentTime + delaySeconds);
+
     isPlaying = true;
 
-    gainNode.gain.setValueAtTime(0, audioCtx.currentTime + delaySeconds);
-    gainNode.gain.linearRampToValueAtTime(MAX_VOLUME, audioCtx.currentTime + delaySeconds + 3);
+    // Apply initial volumes
+    wuwaGain.gain.setValueAtTime(0, audioCtx.currentTime + delaySeconds);
+    wuwaGain.gain.linearRampToValueAtTime(wuwaTargetVolume, audioCtx.currentTime + delaySeconds + 3);
+    
+    tronGain.gain.setValueAtTime(0, audioCtx.currentTime + delaySeconds);
+    tronGain.gain.linearRampToValueAtTime(tronTargetVolume, audioCtx.currentTime + delaySeconds + 3);
   } catch (e) {
     // Silently fail
   }
 }
 
+// Controls the fade state for both tracks manually
+export function setTrackVolumes(wuwaVol, tronVol, duration = 1.0) {
+  wuwaTargetVolume = wuwaVol * MAX_VOLUME;
+  tronTargetVolume = tronVol * MAX_VOLUME;
+
+  if (!audioCtx || !wuwaGain || !tronGain || !isPlaying) return;
+
+  const now = audioCtx.currentTime;
+  wuwaGain.gain.cancelScheduledValues(now);
+  wuwaGain.gain.setValueAtTime(wuwaGain.gain.value, now);
+  wuwaGain.gain.linearRampToValueAtTime(wuwaTargetVolume, now + duration);
+
+  tronGain.gain.cancelScheduledValues(now);
+  tronGain.gain.setValueAtTime(tronGain.gain.value, now);
+  tronGain.gain.linearRampToValueAtTime(tronTargetVolume, now + duration);
+}
+
+// Allows GSAP ScrollTrigger to scrub volumes frame-by-frame without scheduling conflicts
+export function setTrackVolumesImmediate(wuwaVol, tronVol) {
+  wuwaTargetVolume = wuwaVol * MAX_VOLUME;
+  tronTargetVolume = tronVol * MAX_VOLUME;
+
+  if (!audioCtx || !wuwaGain || !tronGain || !isPlaying) return;
+
+  const now = audioCtx.currentTime;
+  // Use setTargetAtTime with a tiny time constant to prevent audio clicking while scrubbing
+  wuwaGain.gain.setTargetAtTime(wuwaTargetVolume, now, 0.05);
+  tronGain.gain.setTargetAtTime(tronTargetVolume, now, 0.05);
+}
+
+// Specifically for ENTER THE GRID so the track starts fresh from 0:00
+export function restartTronAndFadeIn(duration = 1.5) {
+  if (!audioCtx || !tronBuffer || !isPlaying) return;
+
+  // Stop existing TRON source
+  if (tronSource) {
+    try { tronSource.stop(); } catch (e) {}
+    tronSource.disconnect();
+  }
+
+  // Create fresh source from buffer
+  tronSource = audioCtx.createBufferSource();
+  tronSource.buffer = tronBuffer;
+  tronSource.loop = true;
+  tronSource.connect(tronFilter);
+  
+  // Start playing from offset 0
+  tronSource.start(0);
+
+  // Fade in
+  setTrackVolumes(0, 1, duration);
+}
+
 /* ── Scroll-driven Audio Intensity Modulation ── */
 export function setAudioScrollProgress(progress) {
-  if (!audioCtx || !gainNode || !filterNode || isMuted || !isPlaying) return;
+  if (!audioCtx || !wuwaFilter || !isPlaying) return;
 
   const now = audioCtx.currentTime;
 
-  // Interpolate volume: full at landing (0 progress), very quiet at interface (1 progress)
-  // We don't mute entirely, just drop it to 15% of max volume to maintain subtle atmosphere
-  const targetVolume = MAX_VOLUME * (1.0 - (progress * 0.85));
-
-  // Interpolate filter: muffled (800Hz) at landing, clear (20000Hz) at interface
+  // Filter only applies to WuWa currently as TRON needs to be crisp
   const minFreq = 800;
   const maxFreq = 20000;
-  // Clamp progress for safety before pow
   const safeProgress = Math.max(0, Math.min(1, progress));
   const targetFreq = minFreq * Math.pow(maxFreq / minFreq, safeProgress);
 
-  gainNode.gain.cancelScheduledValues(now);
-  gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-  gainNode.gain.linearRampToValueAtTime(targetVolume, now + 0.2);
-
-  filterNode.frequency.cancelScheduledValues(now);
-  filterNode.frequency.setValueAtTime(filterNode.frequency.value, now);
-  filterNode.frequency.exponentialRampToValueAtTime(targetFreq, now + 0.2);
+  wuwaFilter.frequency.cancelScheduledValues(now);
+  wuwaFilter.frequency.setValueAtTime(wuwaFilter.frequency.value, now);
+  wuwaFilter.frequency.exponentialRampToValueAtTime(targetFreq, now + 0.2);
 }
 
 export function setLandingActive(active) {
-  isInLanding = active;
-  if (!audioCtx || !gainNode || !filterNode || isMuted || !isPlaying) return;
-
-  // Resume context if needed
-  if (active && audioCtx.state === 'suspended') {
+  if (!audioCtx || !isPlaying) return;
+  if (active && audioCtx.state === 'suspended' && !isMuted) {
     audioCtx.resume();
   }
 }
@@ -160,22 +224,19 @@ function toggleMute() {
   localStorage.setItem(STORAGE_KEY, isMuted);
   updateMuteButton();
 
-  if (!audioCtx || !gainNode) return;
+  if (!audioCtx || !globalMasterGain) return;
 
   const now = audioCtx.currentTime;
-  gainNode.gain.cancelScheduledValues(now);
-  gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+  globalMasterGain.gain.cancelScheduledValues(now);
+  globalMasterGain.gain.setValueAtTime(globalMasterGain.gain.value, now);
 
   if (isMuted) {
-    gainNode.gain.linearRampToValueAtTime(0, now + 0.5);
+    globalMasterGain.gain.linearRampToValueAtTime(0, now + 0.5);
   } else {
     if (!isPlaying) {
-      audioCtx.resume().then(() => decodeAndPlay());
+      audioCtx.resume().then(() => decodeAndPlayAll());
     } else {
-      gainNode.gain.linearRampToValueAtTime(
-        isInLanding ? MAX_VOLUME : 0,
-        now + FADE_DURATION
-      );
+      globalMasterGain.gain.linearRampToValueAtTime(1, now + 0.5);
     }
   }
 }
