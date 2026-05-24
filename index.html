@@ -398,23 +398,37 @@
         </div>
       </div>
 
-      <!-- SECTION 3: Expanded Aural Synthesis Chamber -->
-      <div class="story-block hyper-tron-block" id="story-block-3">
-        <div class="hyper-tron-grid"></div>
-        <div class="hyper-tron-core">
-          <div class="h-ring h-ring-1"></div>
-          <div class="h-ring h-ring-2"></div>
-          <div class="h-ring h-ring-3"></div>
-          <div class="h-ring h-ring-4"></div>
-        </div>
-        <div class="tron-particles-overlay"></div>
+      <!-- SECTION 3: SUPER BLUE STADIUM (Megacity) -->
+      <div class="story-block stadium-block" id="story-block-3">
+        <!-- Intense Blue Radial Glow Background (Fallback/Additive) -->
+        <div class="stadium-glow"></div>
         
-        <div class="hyper-tron-content">
-          <span class="holo-label pulse">Spotify Audio Engine</span>
-          <h2 class="holo-title massive-holo">Aural Synthesis</h2>
-          <p class="holo-desc">Emotion dictates rhythm. Data streams map directly to Spotify's Web API, dynamically altering audio features, equalizers, and tempos in real-time to match your exact psychological frequency.</p>
+        <!-- The Massive Live AAA Megacity WebGL Canvas -->
+        <canvas id="megacity-canvas"></canvas>
+        
+        <!-- Content Above the Stadium -->
+        <div class="hyper-tron-content stadium-content">
+          <span class="holo-label pulse stadium-label">Aural Synthesis</span>
+          <h2 class="holo-title massive-holo stadium-title">The Arena</h2>
+          <p class="holo-desc stadium-desc">Affective resonance detects high-frequency neural activity. The synaptic stadium is fully materialized.</p>
+          
+          <button id="btn-enter-grid" class="cyber-btn huge-cyber-btn">
+            [ ENTER THE GRID ]
+          </button>
         </div>
       </div>
+    </section>
+
+    <!-- NEW WORLD OVERLAY (Darkness) -->
+    <div id="dark-grid-world" class="dark-grid-world hidden-world">
+      <div class="dark-world-content">
+        <h2 class="holo-title massive-holo">Welcome to the Grid</h2>
+        <p class="holo-desc">Simulation running at 432Hz. Total darkness achieved.</p>
+        <button id="btn-skip-grid" class="cyber-btn skip-btn">
+          &lt; EXIT SIMULATION
+        </button>
+      </div>
+    </div>
 
     </section>
 
