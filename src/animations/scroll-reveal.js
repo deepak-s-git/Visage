@@ -5,8 +5,9 @@
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
-import { setLandingActive, setAudioScrollProgress } from '../audio/ambient.js';
+import { setLandingActive, setAudioScrollProgress, setTrackVolumesImmediate, setTrackVolumes, restartTronAndFadeIn } from '../audio/ambient.js';
 import { initMatrixRain } from './matrix-rain.js';
+import { MegaCity } from '../game/MegaCity.js';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -43,13 +44,6 @@ export function playLandingIntro() {
     opacity: 0, scale: 0.95
   }, {
     opacity: 1, scale: 1, duration: 2.5, ease: 'power2.out'
-  }, 0);
-
-  // Emerge the entire landing environment from atmosphere
-  tl.fromTo('.landing', {
-    opacity: 0
-  }, {
-    opacity: 1, duration: 2.0, ease: 'power2.out'
   }, 0);
 
   // Title (emerges first alongside the core)
@@ -114,19 +108,12 @@ export function initScrollReveal() {
     }
   });
 
-  landingTl.fromTo('.landing-eyebrow, .landing-subtitle, .landing-version, .system-data', 
-    { opacity: 1, y: 0 },
-    { opacity: 0, y: -60, duration: 0.3, ease: 'none', immediateRender: false }, 
-  0)
-  .fromTo('.scroll-cue', 
-    { opacity: 1, y: 0 },
-    { opacity: 0, y: -20, duration: 0.2, ease: 'none', immediateRender: false }, 
-  0)
-  .fromTo('.landing-corner', 
-    { opacity: 1 },
-    { opacity: 0, duration: 0.3, ease: 'none', immediateRender: false }, 
-  0)
-  .set({}, {}, 1.0); // Pad timeline to 1.0 so fade-outs finish in the first 30% of the scroll
+  // Fade out the entire landing section wrapper cleanly
+  // Using fromTo with immediateRender: false prevents conflicts if they scroll instantly
+  landingTl.fromTo('.landing', 
+    { opacity: 1, y: 0 }, 
+    { opacity: 0, y: -60, duration: 1.0, ease: 'none', immediateRender: false }, 
+  0);
 
   // 2. Custom reveal for Story Block 1 (Dimensional Empathy 3D Gallery)
   const sb1 = document.getElementById('story-block-1');
@@ -268,7 +255,6 @@ export function initScrollReveal() {
       { x: 0, z: 0, rotationY: 0, rotationX: 0, opacity: 1, duration: 1.5, ease: 'expo.out' }, 
     2.5);
 
-
     // --- Cinematic 8-Phase Orbital Corruption Sequence (Pinned) ---
     // Make sure we initialize the corruption phase
     window._corruptionPhase = 0;
@@ -285,7 +271,18 @@ export function initScrollReveal() {
       }
     });
 
+    // Audio proxy for track crossfading
+    const audioProxy = { wuwa: 1.0, tron: 0.0 };
+
     // Phase 1: Hold the cards so the user can read them! Then fade them out.
+    // Fade out WuWa music when the orbital array disappears
+    corruptionTl.to(audioProxy, {
+      wuwa: 0.0,
+      duration: 1.5,
+      ease: 'power2.inOut',
+      onUpdate: () => setTrackVolumesImmediate(audioProxy.wuwa, audioProxy.tron)
+    }, 2.0);
+
     corruptionTl.to('.matrix-info-cards, .ambient-ui-filler, .orbital-rings', {
       opacity: 0,
       filter: 'blur(20px)',
@@ -307,8 +304,7 @@ export function initScrollReveal() {
       ease: 'expo.inOut' // Aggressive magnetic pull at the very end
     }, 11.5);
 
-    // The Interior Reveal - start this slightly EARLIER to overlap the plunge
-    // The plunge ends at 13.0 (11.5 + 1.5). Start this at 11.8 to kill the blank gap.
+    // The Interior Reveal
     corruptionTl.to('.hacked-core-interior', {
       opacity: 1,
       pointerEvents: 'auto',
@@ -318,7 +314,6 @@ export function initScrollReveal() {
         if(matrixRainEffect) matrixRainEffect.start();
       },
       onReverseComplete: () => {
-        // Stop canvas animation only when scrolling back up to the intro
         if(matrixRainEffect) matrixRainEffect.stop();
       }
     }, 11.8);
@@ -330,7 +325,6 @@ export function initScrollReveal() {
     }, 11.8);
 
     // Cascading System Crash UI
-    // Windows pop up aggressively one by one as the user scrolls
     corruptionTl.fromTo('.cw-1', { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 1.0 }, 12.5);
     corruptionTl.fromTo('.cw-5', { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.8 }, 13.5);
     corruptionTl.fromTo('.cw-2', { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.8 }, 14.2);
@@ -339,57 +333,40 @@ export function initScrollReveal() {
     corruptionTl.fromTo('.cw-7', { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.8 }, 16.5);
     corruptionTl.fromTo('.cw-4', { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.8 }, 17.5);
 
-    // Fade in the Proceed cue after all windows are up
+    // Fade in the Proceed cue
     corruptionTl.to('.crash-scroll-cue', {
       opacity: 1,
       duration: 0.8
     }, 18.5);
 
-    // Hold the final state briefly so the user can read it
+    // Hold the final state briefly
     corruptionTl.to({}, { duration: 3.0 }); 
     
-    // LITERAL CHARACTER DISSOLVE
-    // Phase 1: The solid UI frames and text disappear, revealing the raw matrix characters underneath
+    // EXACT .glitch CSS REPLICA (Scrubbed)
+    // The user specifically requested the exact same clipping/RGB split as the 999% OVERLOAD text.
+    // We break this into rapid, jagged keyframes manually so it scrubs perfectly.
+    // CLEAN CINEMATIC EXIT ANIMATION
+    // Smoothly defocus, drift upwards, and fade out into the matrix.
     corruptionTl.to('.crash-window', {
-      background: 'transparent',
-      borderColor: 'transparent',
-      boxShadow: 'none',
-      duration: 0.5,
-      stagger: 0
-    }, '+=0');
-    
-    corruptionTl.to('.cw-header, .cw-body', {
+      y: -150,
       opacity: 0,
-      duration: 0.5,
-      stagger: 0
-    }, '<');
-
-    corruptionTl.to('.cw-matrix-bg', {
-      opacity: 1,
-      duration: 0.5,
-      stagger: 0
-    }, '<');
-
-    // Phase 2: The pure blocks of matrix characters plummet down the screen into the rain
-    corruptionTl.to('.crash-window', {
-      y: 1500,
-      opacity: 0, // Fades out as they fall deeper
-      filter: 'blur(3px)', // Motion blur
-      stagger: {
-        amount: 0.8,
-        from: "random" // Falling at random times
-      },
-      duration: 3.0,
-      ease: 'power3.in' // Accelerating gravity
+      scale: 0.95,
+      filter: 'blur(15px)',
+      stagger: 0.1, // Smooth cascade
+      duration: 2.0,
+      ease: 'power2.inOut'
     }, '+=0');
 
-    // Fade the scroll cue out smoothly alongside it
+    // Fade the scroll cue out smoothly alongside the cards
     corruptionTl.to('.crash-scroll-cue', {
-      y: 200,
+      y: 50,
       opacity: 0,
-      filter: "blur(10px)",
+      filter: 'blur(10px)',
       duration: 1.0
     }, '<');
+
+    // End timeline padding
+    corruptionTl.to({}, { duration: 1.0 });
   }
 
   // 4. Generic reveal for remaining story blocks
@@ -409,35 +386,175 @@ export function initScrollReveal() {
     });
   });
 
-  // 5. Custom pinned reveal for Aural Synthesis Chamber
+  // 5. Custom pinned reveal for Super Blue Stadium
   const sb3 = document.getElementById('story-block-3');
+  let stadium = null;
+
   if (sb3) {
+    // Initialize the massive 3D Stadium
+    stadium = new MegaCity('megacity-canvas');
+
+    // Start the WebGL render loop as soon as the section becomes visible at all
+    ScrollTrigger.create({
+      trigger: sb3,
+      start: 'top bottom', // Triggers when the top of the city hits the bottom of your screen
+      end: 'bottom top',   // Triggers when the bottom of the city leaves the top of your screen
+      onEnter: () => stadium.start(),
+      onLeave: () => stadium.stop(),
+      onEnterBack: () => stadium.start(),
+      onLeaveBack: () => stadium.stop()
+    });
+
     const sb3Tl = gsap.timeline({
       scrollTrigger: {
         trigger: sb3,
-        start: 'center center', // Pin when it hits the exact center
-        end: '+=400%', // Lots of space for future aural synthesis interactive content
+        start: 'top top', // Pin perfectly when the top edge hits the top of the screen
+        end: '+=400%',
         scrub: 1.5,
         pin: true,
         pinSpacing: true
       }
     });
 
-    // Fade the section in as it approaches the center
+    // 1. Fade the ENTIRE stadium section in
     gsap.fromTo(sb3, 
-      { opacity: 0, y: 100 },
+      { opacity: 0 },
       { 
         opacity: 1, 
-        y: 0, 
         ease: 'power2.out',
         scrollTrigger: {
           trigger: sb3,
           start: 'top 80%',
-          end: 'center center',
+          end: 'top top',
           scrub: 1.5
         }
       }
     );
+
+    // 2. Animate the City Construction via Shader!
+    const buildProxy = { progress: 0 };
+    gsap.fromTo(buildProxy, 
+      { progress: 0 },
+      {
+        progress: 1,
+        ease: 'power1.inOut',
+        scrollTrigger: {
+          trigger: sb3,
+          start: 'top 100%', // Start building the moment it enters the screen
+          end: 'top top',    // Finish completely when it covers full screen
+          scrub: 1.5
+        },
+        onUpdate: () => {
+          if (stadium) stadium.setBuildProgress(buildProxy.progress);
+        }
+      }
+    );
+
+    // 3. Cinematic Fly-Forward Exit
+    // At the very end of the 400% pin, fly the camera forward into the horizon
+    sb3Tl.to(stadium.baseCameraPos, {
+      z: -2000,
+      y: 200,
+      duration: 1,
+      ease: 'power3.in' // Accelerates forward
+    }, '+=3.0'); // Starts near the end of the pin space
+
+    // Fade out Matrix Rain seamlessly as this section scrolls in, ensuring it scrubs back up!
+    gsap.fromTo('.matrix-rain-canvas', 
+      { opacity: 0.8 },
+      {
+        opacity: 0,
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: sb3,
+          start: 'top 100%',
+          end: 'top top',
+          scrub: 1.5
+        }
+      }
+    );
+
+    // Initial Button Click Handler (ENTER THE GRID Transition)
+    const btnEnter = document.getElementById('btn-enter-grid');
+    const darkWorld = document.getElementById('dark-grid-world');
+    const btnSkip = document.getElementById('btn-skip-grid');
+
+    if (btnEnter && darkWorld) {
+      btnEnter.addEventListener('click', () => {
+        // Lock scrolling
+        document.body.style.overflow = 'hidden';
+        
+        // HYPER ZOOM TRANSITION into the Master Image
+        const transTl = gsap.timeline();
+        
+        // Start TRON music fresh from 0:00 on click
+        restartTronAndFadeIn(1.5);
+        
+        // Hide the text content immediately
+        transTl.to('.stadium-content', { opacity: 0, duration: 0.3 });
+        
+        // Trigger the 3D Camera Dive in Three.js
+        if (stadium) stadium.hyperDive();
+
+        // Flash the screen pure white/cyan during the dive
+        transTl.to('.stadium-glow', {
+          scale: 5,
+          opacity: 1,
+          filter: 'brightness(5)',
+          background: 'radial-gradient(circle at center, #ffffff 0%, #00ffff 100%)',
+          duration: 0.8,
+          ease: 'power3.in'
+        }, 0.6); // Start the flash halfway through the 1.5s dive
+
+        // Reveal the Dark World
+        transTl.call(() => {
+          darkWorld.classList.add('active-world');
+        });
+
+        // Fade in the dark world content
+        transTl.fromTo('.dark-world-content', 
+          { opacity: 0, scale: 0.9 },
+          { opacity: 1, scale: 1, duration: 1.0, ease: 'power2.out' },
+          '+=0.1'
+        );
+      });
+      
+      // Skip Button Logic (Return to Stadium)
+      if (btnSkip) {
+        btnSkip.addEventListener('click', () => {
+          const retTl = gsap.timeline();
+          
+          // Fade TRON music back out
+          setTrackVolumes(0, 0, 1.5);
+          
+          // Fade out dark world
+          retTl.to('.dark-world-content', { opacity: 0, scale: 0.9, duration: 0.5, ease: 'power2.in' });
+          retTl.call(() => {
+            darkWorld.classList.remove('active-world');
+          });
+
+          // Un-flash the stadium glow
+          retTl.to('.stadium-glow', {
+            scale: 1,
+            filter: 'brightness(1)',
+            background: 'radial-gradient(circle at center, rgba(0, 150, 255, 0.4) 0%, rgba(0, 50, 255, 0.1) 40%, transparent 70%)',
+            duration: 0.5,
+            ease: 'power2.out'
+          }, '<');
+
+          // Reverse the 3D Camera Dive
+          if (stadium) stadium.reverseDive();
+
+          // Bring back stadium text after the camera is mostly back up
+          retTl.to('.stadium-content', { opacity: 1, duration: 0.5 }, '+=1.0');
+          
+          retTl.call(() => {
+            // Unlock scrolling
+            document.body.style.overflow = '';
+          });
+        });
+      }
+    }
   }
 
   // 6. Orb Gateway reveal
