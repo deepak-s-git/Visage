@@ -360,18 +360,25 @@ export class MegaCity {
       uniforms: {
         glowColor: { value: new THREE.Color(0x00aaff) },
         baseColor: { value: new THREE.Color(0x000205) },
-        buildProgress: { value: 0.0 }
+        buildProgress: { value: 0.0 },
+        time: { value: 0.0 }
       },
       vertexShader: `
         uniform float buildProgress;
         varying vec3 vPosition;
-        varying vec2 vUv;
+        varying vec3 vLocalPos;
+        varying vec3 vLocalNormal;
+        varying vec3 vInstancePos;
+        varying vec3 vScale;
+
         void main() {
           vPosition = position;
-          vUv = uv;
+          vLocalNormal = normal;
           
           // Distance from center based on instance matrix translation
           vec3 instancePos = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
+          vInstancePos = instancePos;
+          
           float dist = length(instancePos.xz);
           
           // Shockwave delay based on distance (center builds first)
@@ -380,6 +387,16 @@ export class MegaCity {
           
           // Smooth curve
           float easeProgress = localProgress * localProgress * (3.0 - 2.0 * localProgress);
+          
+          // Extract building scale from the instance matrix
+          vScale = vec3(
+            length(instanceMatrix[0].xyz),
+            length(instanceMatrix[1].xyz),
+            length(instanceMatrix[2].xyz)
+          );
+          
+          // Static local position for stable procedural textures during growth
+          vLocalPos = position * vScale;
           
           vec3 pos = position;
           // Scale height from the bottom up (-0.5 to 0.5)
@@ -391,22 +408,170 @@ export class MegaCity {
       fragmentShader: `
         uniform vec3 glowColor;
         uniform vec3 baseColor;
+        uniform float time;
         varying vec3 vPosition;
-        varying vec2 vUv;
+        varying vec3 vLocalPos;
+        varying vec3 vLocalNormal;
+        varying vec3 vInstancePos;
+        varying vec3 vScale;
+
+        float hash(vec3 p) {
+          return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453123);
+        }
 
         void main() {
-          // Detect edges using UVs
-          float edgeX = min(vUv.x, 1.0 - vUv.x);
-          float edgeY = min(vUv.y, 1.0 - vUv.y);
+          float bRand = hash(vInstancePos);
           
-          float edgeThickness = 0.05;
-          float isEdge = step(edgeX, edgeThickness) + step(edgeY, edgeThickness);
+          // Calculate distance to edges in local units (meters)
+          float distToEdgeX = vScale.x * 0.5 - abs(vLocalPos.x);
+          float distToEdgeY = vScale.y * 0.5 - abs(vLocalPos.y);
+          float distToEdgeZ = vScale.z * 0.5 - abs(vLocalPos.z);
           
-          // Add vertical gradient to buildings (darker at bottom)
+          // Setup orientation coordinates
+          float horizCoord = (abs(vLocalNormal.x) > 0.5) ? vLocalPos.z : vLocalPos.x;
+          float vertCoord = vLocalPos.y;
+          
+          // Define physical edge distance for the active face
+          float edgeDist = 999.0;
+          if (abs(vLocalNormal.y) > 0.5) {
+            edgeDist = min(distToEdgeX, distToEdgeZ);
+          } else if (abs(vLocalNormal.x) > 0.5) {
+            edgeDist = min(distToEdgeY, distToEdgeZ);
+          } else {
+            edgeDist = min(distToEdgeY, distToEdgeX);
+          }
+          
+          // Crisp neon border (constant thickness of 0.35m)
+          float borderThickness = 0.35;
+          float isNeonBorder = smoothstep(borderThickness, 0.0, edgeDist);
+          
+          // Tron Color Palette setup
+          vec3 neonColor = vec3(0.0, 0.75, 1.0); // Tron Cyan
+          vec3 traceColor = vec3(0.0, 0.45, 0.9); // Tron Electric Blue
+          
+          // 10% of buildings belong to the Orange enemy sector
+          float bColorRand = fract(bRand * 7.13);
+          if (bColorRand < 0.1) {
+            neonColor = vec3(1.0, 0.45, 0.0); // Tron Orange
+            traceColor = vec3(1.0, 0.25, 0.0); // Deep Orange
+          }
+          
+          // Initialize light parameters
+          float isLit = 0.0;
+          vec3 activeGlowColor = traceColor;
+          
+          // 1. TOP FACE: Silicon Chip connection pins or Concentric Logic Rings
+          float topGlow = 0.0;
+          if (vLocalNormal.y > 0.5) {
+            if (vScale.y <= 35.0) {
+              // Flat Silicon Chip: Grid of pins
+              float gridSpacing = 4.0;
+              vec2 topGrid = vLocalPos.xz / gridSpacing;
+              vec2 topFract = fract(topGrid);
+              vec2 topId = floor(topGrid);
+              
+              // Draw a tiny circular pin/pad at center of grid cell
+              float distToPinCenter = length(topFract - vec2(0.5));
+              float isPin = smoothstep(0.2, 0.15, distToPinCenter);
+              
+              // Only illuminate some pins
+              float pinRand = hash(vec3(topId, hash(vInstancePos)));
+              topGlow = isPin * step(pinRand, 0.5);
+              activeGlowColor = neonColor;
+            } else {
+              // Tall Spire/Logic Tower: Concentric circular target rings
+              float centerDist = length(vLocalPos.xz);
+              float minDim = min(vScale.x, vScale.z);
+              float r1 = minDim * 0.2;
+              float r2 = minDim * 0.35;
+              
+              float ring1 = smoothstep(0.4, 0.0, abs(centerDist - r1));
+              float ring2 = smoothstep(0.4, 0.0, abs(centerDist - r2));
+              topGlow = max(ring1, ring2) * 0.8;
+              activeGlowColor = neonColor;
+            }
+          }
+          
+          // 2. SIDE FACES: Animated streams (Spires) or Circuit board traces (Blocks/Chips)
+          float sideGlow = 0.0;
+          if (abs(vLocalNormal.y) <= 0.5) {
+            float distToEdgeH = (abs(vLocalNormal.x) > 0.5) ? distToEdgeZ : distToEdgeX;
+            float distToEdgeV = distToEdgeY;
+            
+            // Only draw inside building bounds (clear of border edges)
+            if (distToEdgeH > 0.6 && distToEdgeV > 0.6) {
+              if (vScale.y > 100.0) {
+                // Animated vertical falling data streams (Data Spires)
+                float flowSpeed = 35.0; // Units per second
+                float flowCoord = vertCoord - time * flowSpeed;
+                float dataGridY = flowCoord / 8.0;
+                float dataIdY = floor(dataGridY);
+                float dataFractY = fract(dataGridY);
+                
+                float dataGridX = horizCoord / 3.0;
+                float dataIdX = floor(dataGridX);
+                float dataFractX = fract(dataGridX);
+                
+                float isStream = step(0.4, dataFractX) * step(dataFractX, 0.6) * 
+                                 step(0.2, dataFractY) * step(dataFractY, 0.8);
+                
+                float streamRand = hash(vec3(dataIdX, dataIdY, hash(vInstancePos)));
+                float isStreamActive = step(streamRand, 0.4) * (0.4 + 0.6 * sin(time * 6.0 + streamRand * 10.0));
+                
+                sideGlow = isStream * isStreamActive;
+                activeGlowColor = mix(neonColor, vec3(1.0), 0.3); // extra white-hot core intensity
+                
+              } else {
+                // Circuit board logic lines and intersection pads
+                float gridSpacing = 6.0;
+                float traceX = horizCoord / gridSpacing;
+                float traceY = vertCoord / gridSpacing;
+                vec2 traceId = floor(vec2(traceX, traceY));
+                vec2 traceFract = fract(vec2(traceX, traceY));
+                
+                // Draw grid lines
+                float lineThickness = 0.05;
+                float isLine = step(traceFract.x, lineThickness) + step(traceFract.y, lineThickness);
+                
+                // Randomly activate 35% of the lines
+                float lineRand = hash(vec3(traceId, hash(vInstancePos)));
+                isLine *= step(lineRand, 0.35);
+                
+                // Draw circular contact pad at intersections
+                float dotRadius = 0.15;
+                float distToIntersection = length(traceFract - vec2(0.0));
+                float isDot = smoothstep(dotRadius, dotRadius - 0.03, distToIntersection);
+                // 25% of intersections have dots
+                isDot *= step(hash(vec3(traceId + 0.5, hash(vInstancePos))), 0.25);
+                
+                sideGlow = max(isLine, isDot);
+                activeGlowColor = mix(traceColor, neonColor, isDot);
+              }
+            }
+          }
+          
+          // Assemble lighting layers
+          vec3 finalColor = baseColor;
+          
+          // Neon border glow
+          finalColor = mix(finalColor, neonColor, isNeonBorder * 0.95);
+          
+          // Top face logic glow
+          if (vLocalNormal.y > 0.5) {
+            finalColor = mix(finalColor, activeGlowColor, topGlow);
+          }
+          
+          // Side face trace / stream glow
+          if (abs(vLocalNormal.y) <= 0.5) {
+            finalColor = mix(finalColor, activeGlowColor, sideGlow * 0.95);
+          }
+          
+          // Apply atmospheric fog / height fade (darker at bottom)
           float heightFade = smoothstep(-0.5, 0.5, vPosition.y);
+          float glowFade = mix(0.15, 1.0, heightFade);
+          finalColor = mix(baseColor, finalColor, glowFade);
           
-          vec3 color = mix(baseColor, glowColor * heightFade, clamp(isEdge, 0.0, 1.0) * 0.8);
-          gl_FragColor = vec4(color, 1.0);
+          gl_FragColor = vec4(finalColor, 1.0);
         }
       `
     });
@@ -436,10 +601,28 @@ export class MegaCity {
       // Determine height based on distance from center (denser/taller near center)
       const distToCenter = Math.hypot(x, z);
       const maxHeight = Math.max(20, 400 - (distToCenter * 0.15));
-      const height = 20 + Math.random() * maxHeight;
       
-      const width = 10 + Math.random() * 30;
-      const depth = 10 + Math.random() * 30;
+      let width, height, depth;
+      const structRand = Math.random();
+      
+      if (structRand < 0.15) {
+        // Structural Spire (Tall, thin capacitor)
+        width = 6 + Math.random() * 8;
+        depth = 6 + Math.random() * 8;
+        height = (120 + Math.random() * 150) * (maxHeight / 400.0);
+        height = Math.max(80, height); // ensure they are sufficiently tall spires
+      } else if (structRand < 0.30) {
+        // Silicon Chip (Flat, low block)
+        width = 35 + Math.random() * 35;
+        depth = 35 + Math.random() * 35;
+        height = 10 + Math.random() * 15;
+      } else {
+        // Logic Block (Standard monolithic motherboard component)
+        width = 15 + Math.random() * 20;
+        depth = 15 + Math.random() * 20;
+        height = (35 + Math.random() * 60) * (maxHeight / 400.0);
+        height = Math.max(20, height);
+      }
 
       dummy.position.set(x, height / 2, z);
       dummy.scale.set(width, height, depth);
@@ -539,6 +722,7 @@ export class MegaCity {
 
     const time = this.clock.getElapsedTime();
     if (this.floorMat) this.floorMat.uniforms.time.value = time;
+    if (this.buildingMaterial) this.buildingMaterial.uniforms.time.value = time;
 
     this.updateTraffic();
 
