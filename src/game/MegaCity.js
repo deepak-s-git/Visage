@@ -139,11 +139,26 @@ export class MegaCity {
 
         void main() {
           float grid = hexGrid(vUv);
-          // Distance fade
-          float dist = length(vWorldPos.xz) / 3000.0;
-          float fade = 1.0 - smoothstep(0.0, 1.0, dist);
+          // Distance from center
+          float dist = length(vWorldPos.xz);
           
-          vec3 finalColor = mix(color * 0.1, glowColor, grid * 0.3);
+          // Distance fade
+          float normalizedDist = dist / 3000.0;
+          float fade = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
+          
+          // Heartbeat wave: starts at center, propagates outward every 4 seconds
+          float wavePos = mod(time, 4.0) * 600.0; // speed is 600 units/sec
+          float waveDist = dist - wavePos;
+          float waveWindow = smoothstep(-300.0, 0.0, waveDist) * smoothstep(80.0, 0.0, waveDist);
+          float ripple = sin(waveDist * 0.08) * 0.5 + 0.5;
+          float waveFade = clamp(1.0 - dist / 2200.0, 0.0, 1.0);
+          float waveGlow = ripple * waveWindow * waveFade * 1.5;
+          
+          // Combine base grid and the heartbeat ripple
+          vec3 finalColor = mix(color * 0.1, glowColor, grid * (0.3 + waveGlow * 1.5));
+          // Add secondary direct neon color wave for the glowing grid lines
+          finalColor += glowColor * waveGlow * 0.4;
+          
           gl_FragColor = vec4(finalColor, 1.0) * fade;
         }
       `,
@@ -164,30 +179,298 @@ export class MegaCity {
   buildCentralSpire() {
     const spireGroup = new THREE.Group();
     
-    // Base Tower (Dark Glass)
-    const baseGeo = new THREE.CylinderGeometry(80, 120, 600, 8);
-    const darkGlass = new THREE.MeshStandardMaterial({
-      color: 0x000205,
+    // Materials
+    const darkMetal = new THREE.MeshStandardMaterial({
+      color: 0x000103, // Obsidian deep dark black
       roughness: 0.1,
-      metalness: 0.9,
+      metalness: 0.95,
     });
-    const base = new THREE.Mesh(baseGeo, darkGlass);
-    base.position.y = 300;
-    spireGroup.add(base);
+    
+    const neonLineMat = new THREE.LineBasicMaterial({
+      color: 0x00ffff,
+      linewidth: 2
+    });
 
-    // Glowing Neon Edges
-    const edgesGeo = new THREE.EdgesGeometry(baseGeo);
-    const neonMat = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
-    const edges = new THREE.LineSegments(edgesGeo, neonMat);
-    edges.position.y = 300;
-    spireGroup.add(edges);
+    const glowNeonMat = new THREE.MeshBasicMaterial({
+      color: 0x00f0ff
+    });
 
-    // Energy Core
-    const coreGeo = new THREE.CylinderGeometry(20, 20, 500, 16);
-    const coreMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-    const core = new THREE.Mesh(coreGeo, coreMat);
-    core.position.y = 250;
-    spireGroup.add(core);
+    // Helper to add styled parts and their neon outline segments
+    const addPart = (geom, pos, rot = null) => {
+      const mesh = new THREE.Mesh(geom, darkMetal);
+      mesh.position.copy(pos);
+      if (rot) {
+        mesh.rotation.copy(rot);
+      }
+      spireGroup.add(mesh);
+
+      const edges = new THREE.EdgesGeometry(geom);
+      const lineSegments = new THREE.LineSegments(edges, neonLineMat);
+      lineSegments.position.copy(pos);
+      if (rot) {
+        lineSegments.rotation.copy(rot);
+      }
+      spireGroup.add(lineSegments);
+      return mesh;
+    };
+
+    // --- 1. EXTRUDED MONOLITHIC CORE SHAPE ---
+    const coreShape = new THREE.Shape();
+    coreShape.moveTo(0, 0);
+    // Outer buttress wide base
+    coreShape.lineTo(-180, 0);
+    // Sweeping curves defining the sloping buttress footing
+    coreShape.quadraticCurveTo(-140, 80, -90, 135);
+    // Inward sweep transition to vertical tower ascent columns
+    coreShape.quadraticCurveTo(-45, 180, -35, 360);
+    // Horn geometry crown tapering at the top pinnacle (360m to 450m)
+    coreShape.quadraticCurveTo(-38, 410, -45, 450);
+    coreShape.lineTo(-20, 450);
+    coreShape.quadraticCurveTo(-15, 410, -15, 360);
+    // Central cavity slot vertical descent down to Y = 135 (30% fortress base)
+    coreShape.lineTo(-15, 135);
+    coreShape.lineTo(0, 135);
+    
+    // Mirror on the right side
+    coreShape.lineTo(15, 135);
+    coreShape.lineTo(15, 360);
+    coreShape.quadraticCurveTo(15, 410, 20, 450);
+    coreShape.lineTo(45, 450);
+    coreShape.quadraticCurveTo(38, 410, 35, 360);
+    coreShape.quadraticCurveTo(45, 180, 90, 135);
+    coreShape.quadraticCurveTo(140, 80, 180, 0);
+    coreShape.closePath();
+
+    const coreExtrudeSettings = {
+      depth: 60,
+      bevelEnabled: true,
+      bevelThickness: 2,
+      bevelSize: 1,
+      bevelSegments: 2,
+      steps: 1
+    };
+
+    const coreGeom = new THREE.ExtrudeGeometry(coreShape, coreExtrudeSettings);
+    addPart(coreGeom, new THREE.Vector3(0, 0, -30));
+
+    // --- 2. EXTRUDED FRONT & BACK BUTTRESS WEDGES (For solid 4-way ground base) ---
+    const buttressShape = new THREE.Shape();
+    buttressShape.moveTo(30, 0);
+    buttressShape.lineTo(160, 0);
+    buttressShape.quadraticCurveTo(150, 25, 120, 40);
+    buttressShape.quadraticCurveTo(75, 80, 30, 135);
+    buttressShape.closePath();
+
+    const buttressExtrudeSettings = {
+      depth: 80,
+      bevelEnabled: true,
+      bevelThickness: 2,
+      bevelSize: 1,
+      bevelSegments: 2,
+      steps: 1
+    };
+
+    const buttressGeom = new THREE.ExtrudeGeometry(buttressShape, buttressExtrudeSettings);
+    
+    // Front Buttress wedge (slopes towards +Z)
+    addPart(buttressGeom, new THREE.Vector3(40, 0, 0), new THREE.Euler(0, -Math.PI / 2, 0));
+
+    // Back Buttress wedge (slopes towards -Z)
+    addPart(buttressGeom, new THREE.Vector3(-40, 0, 0), new THREE.Euler(0, Math.PI / 2, 0));
+
+    // --- 3. SWEEPING VOLUMETRIC GLOW TUBES (Along 4 buttress curves) ---
+    const addGlowTube = (p1, p2, p3) => {
+      const curve = new THREE.QuadraticBezierCurve3(p1, p2, p3);
+      const geom = new THREE.TubeGeometry(curve, 32, 2.5, 8, false);
+      const mesh = new THREE.Mesh(geom, glowNeonMat);
+      spireGroup.add(mesh);
+    };
+
+    // Front edge curves (Z = 30.5)
+    addGlowTube(new THREE.Vector3(-180, 2, 30.5), new THREE.Vector3(-140, 80, 30.5), new THREE.Vector3(-90, 135, 30.5));
+    addGlowTube(new THREE.Vector3(180, 2, 30.5), new THREE.Vector3(140, 80, 30.5), new THREE.Vector3(90, 135, 30.5));
+
+    // Back edge curves (Z = -30.5)
+    addGlowTube(new THREE.Vector3(-180, 2, -30.5), new THREE.Vector3(-140, 80, -30.5), new THREE.Vector3(-90, 135, -30.5));
+    addGlowTube(new THREE.Vector3(180, 2, -30.5), new THREE.Vector3(140, 80, -30.5), new THREE.Vector3(90, 135, -30.5));
+
+    // --- 4. GLOWING CONDUIT LINES (Up column faces) ---
+    const conduitGeo = new THREE.BoxGeometry(2, 225, 1);
+    
+    // Front column lines
+    const fcL = new THREE.Mesh(conduitGeo, glowNeonMat);
+    fcL.position.set(-25, 247.5, 30.5);
+    spireGroup.add(fcL);
+    
+    const fcR = new THREE.Mesh(conduitGeo, glowNeonMat);
+    fcR.position.set(25, 247.5, 30.5);
+    spireGroup.add(fcR);
+    
+    // Back column lines
+    const bcL = new THREE.Mesh(conduitGeo, glowNeonMat);
+    bcL.position.set(-25, 247.5, -30.5);
+    spireGroup.add(bcL);
+    
+    const bcR = new THREE.Mesh(conduitGeo, glowNeonMat);
+    bcR.position.set(25, 247.5, -30.5);
+    spireGroup.add(bcR);
+
+    // --- 5. GLOWING LOGIC CHIPS & ACCENTS ON MONOLITHIC SURFACES (Coloring it up) ---
+    const logicGeo = new THREE.BoxGeometry(4, 4, 1.5);
+    const orangeMat = new THREE.MeshBasicMaterial({ color: 0xff5500 }); // Tron Orange accent
+
+    const addLogicGrid = (xCenter, zPos, isFront) => {
+      for (let y = 150; y <= 350; y += 24) {
+        const pattern = Math.sin(y * 0.05);
+        if (pattern > 0.3) {
+          for (let dx = -10; dx <= 10; dx += 10) {
+            const isOrange = Math.sin(y * 2.0 + dx) > 0.4;
+            const mesh = new THREE.Mesh(logicGeo, isOrange ? orangeMat : glowNeonMat);
+            mesh.position.set(xCenter + dx, y, zPos + (isFront ? 0.8 : -0.8));
+            spireGroup.add(mesh);
+          }
+        } else if (pattern > -0.3) {
+          for (let dx = -5; dx <= 5; dx += 10) {
+            const isOrange = Math.sin(y * 2.0 + dx) > 0.4;
+            const mesh = new THREE.Mesh(logicGeo, isOrange ? orangeMat : glowNeonMat);
+            mesh.position.set(xCenter + dx, y, zPos + (isFront ? 0.8 : -0.8));
+            spireGroup.add(mesh);
+          }
+        } else {
+          const isOrange = Math.sin(y * 2.0) > 0.4;
+          const mesh = new THREE.Mesh(logicGeo, isOrange ? orangeMat : glowNeonMat);
+          mesh.position.set(xCenter, y, zPos + (isFront ? 0.8 : -0.8));
+          spireGroup.add(mesh);
+        }
+      }
+    };
+
+    // Add logic grids on columns (front/back)
+    addLogicGrid(-25, 30, true);
+    addLogicGrid(25, 30, true);
+    addLogicGrid(-25, -30, false);
+    addLogicGrid(25, -30, false);
+
+    // Add horizontal glowing bands on side buttresses
+    const buttressLineGeo = new THREE.BoxGeometry(10, 1.5, 82);
+    for (let i = 1; i <= 5; i++) {
+      const t = i / 6.0;
+      const xLeft = -90 * (1.0 - t) - 180 * t;
+      const xRight = 90 * (1.0 - t) + 180 * t;
+      const y = 135 * (1.0 - t);
+      
+      const meshL = new THREE.Mesh(buttressLineGeo, glowNeonMat);
+      meshL.position.set(xLeft, y, 0);
+      spireGroup.add(meshL);
+
+      const meshR = new THREE.Mesh(buttressLineGeo, glowNeonMat);
+      meshR.position.set(xRight, y, 0);
+      spireGroup.add(meshR);
+    }
+
+    // Add horizontal glowing bands on front/back buttresses
+    const frontButtressLineGeo = new THREE.BoxGeometry(78, 1.5, 10);
+    for (let i = 1; i <= 4; i++) {
+      const t = i / 5.0;
+      const zFront = 30 * (1.0 - t) + 160 * t;
+      const zBack = -30 * (1.0 - t) - 160 * t;
+      const y = 135 * (1.0 - t);
+      
+      const meshF = new THREE.Mesh(frontButtressLineGeo, glowNeonMat);
+      meshF.position.set(0, y, zFront);
+      spireGroup.add(meshF);
+
+      const meshB = new THREE.Mesh(frontButtressLineGeo, glowNeonMat);
+      meshB.position.set(0, y, zBack);
+      spireGroup.add(meshB);
+    }
+
+    // --- 6. GLOWING STRUCTURAL POWER NODES ---
+    const nodeGeo = new THREE.BoxGeometry(8, 8, 8);
+    const addPowerNode = (x, y, z) => {
+      const mesh = new THREE.Mesh(nodeGeo, glowNeonMat);
+      mesh.position.set(x, y, z);
+      spireGroup.add(mesh);
+    };
+
+    // Buttress feet nodes
+    addPowerNode(-180, 4, 30.5);
+    addPowerNode(180, 4, 30.5);
+    addPowerNode(-180, 4, -30.5);
+    addPowerNode(180, 4, -30.5);
+
+    // Crown pinnacle tip nodes
+    addPowerNode(-32.5, 450, 0);
+    addPowerNode(32.5, 450, 0);
+
+    // --- 7. GLOWING ENERGY SLIT (Multi-layer white-hot core & cyan glow) ---
+    const innerSlitMat = new THREE.MeshBasicMaterial({ color: 0xffffff }); // White-hot core
+    const outerSlitMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.8 }); // Cyan outer glow
+    
+    const outerSlitGeo = new THREE.BoxGeometry(10, 315, 12);
+    const outerMesh = new THREE.Mesh(outerSlitGeo, outerSlitMat);
+    outerMesh.position.set(0, 135 + 315/2, 0);
+    spireGroup.add(outerMesh);
+
+    const innerSlitGeo = new THREE.BoxGeometry(3, 315, 14); // White-hot core
+    this.energyCoreMesh = new THREE.Mesh(innerSlitGeo, innerSlitMat);
+    this.energyCoreMesh.position.set(0, 135 + 315/2, 0);
+    spireGroup.add(this.energyCoreMesh);
+
+    // --- 8. CELESTIAL SKY BEAM (ShaderMaterial for minimal, upward pulsating beam) ---
+    const beamShaderMat = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0 },
+        color: { value: new THREE.Color(0x00f0ff) }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float time;
+        uniform vec3 color;
+        varying vec2 vUv;
+        void main() {
+          // Upward wave: wavelength is 12.0, speed is 10.0
+          float pulse = sin(vUv.y * 12.0 - time * 10.0) * 0.5 + 0.5;
+          // Minimal beam: fade out completely towards the top (Y = 1.0)
+          float fade = pow(1.0 - vUv.y, 2.5);
+          // Horizontal edge fade to look volumetric and soft
+          float edgeFade = smoothstep(0.0, 0.25, vUv.x) * smoothstep(1.0, 0.75, vUv.x);
+          
+          vec3 finalColor = mix(color, vec3(1.0), pulse * 0.3) * (0.6 + pulse * 0.9) * 1.5;
+          gl_FragColor = vec4(finalColor, (0.15 + pulse * 0.85) * fade * edgeFade);
+        }
+      `,
+      transparent: true,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    
+    this.skyBeamMat = beamShaderMat;
+
+    const beamGeo = new THREE.PlaneGeometry(8, 600); // 8m wide, 600m high (minimal)
+    const skyBeam1 = new THREE.Mesh(beamGeo, beamShaderMat);
+    skyBeam1.position.set(0, 450 + 300, 0); // centered above the 450m crown
+    spireGroup.add(skyBeam1);
+
+    const skyBeam2 = skyBeam1.clone();
+    skyBeam2.rotation.y = Math.PI / 2;
+    spireGroup.add(skyBeam2);
+
+    // --- 9. POWERFUL ACCENT POINT LIGHTS ---
+    const cavityLight = new THREE.PointLight(0x00ffff, 120000, 800);
+    cavityLight.position.set(0, 290, 0);
+    spireGroup.add(cavityLight);
+
+    const crownLight = new THREE.PointLight(0x00ffff, 150000, 1000);
+    crownLight.position.set(0, 450, 0);
+    spireGroup.add(crownLight);
 
     this.heroGroup.add(spireGroup);
   }
@@ -229,9 +512,13 @@ export class MegaCity {
     this.heroGroup.add(createRoad(40, 4000, 0, 0, Math.PI / 4));
     this.heroGroup.add(createRoad(40, 4000, 0, 0, -Math.PI / 4));
     
-    // Add moving traffic
-    this.addTraffic(new THREE.Vector3(0, 2, -2000), new THREE.Vector3(0, 2, 2000), 100);
-    this.addTraffic(new THREE.Vector3(-2000, 2, 0), new THREE.Vector3(2000, 2, 0), 100);
+    // Add moving traffic flowing OUTWARD from center (0, 2, 0) along 8 directions
+    const angles = [0, Math.PI / 4, Math.PI / 2, Math.PI * 0.75, Math.PI, -Math.PI * 0.75, -Math.PI / 2, -Math.PI / 4];
+    angles.forEach(angle => {
+      const start = new THREE.Vector3(0, 2, 0);
+      const end = new THREE.Vector3(2000 * Math.sin(angle), 2, 2000 * Math.cos(angle));
+      this.addTraffic(start, end, 20); // 20 packets per highway track = 160 total packets
+    });
   }
 
   // 4. The Cloverleaf Interchange (Bottom Left of Reference)
@@ -370,6 +657,7 @@ export class MegaCity {
         varying vec3 vLocalNormal;
         varying vec3 vInstancePos;
         varying vec3 vScale;
+        varying vec3 vWorldPos;
 
         void main() {
           vPosition = position;
@@ -402,6 +690,10 @@ export class MegaCity {
           // Scale height from the bottom up (-0.5 to 0.5)
           pos.y = (pos.y + 0.5) * easeProgress - 0.5;
           
+          // Calculate world position
+          vec4 worldPos = modelMatrix * instanceMatrix * vec4(pos, 1.0);
+          vWorldPos = worldPos.xyz;
+          
           gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(pos, 1.0);
         }
       `,
@@ -414,6 +706,7 @@ export class MegaCity {
         varying vec3 vLocalNormal;
         varying vec3 vInstancePos;
         varying vec3 vScale;
+        varying vec3 vWorldPos;
 
         float hash(vec3 p) {
           return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453123);
@@ -421,6 +714,21 @@ export class MegaCity {
 
         void main() {
           float bRand = hash(vInstancePos);
+          float distToCore = length(vInstancePos.xz);
+          
+          // Spatial density scaling: closer to spire = higher density (5x higher base energy density)
+          float density = mix(0.2, 1.0, smoothstep(2000.0, 100.0, distToCore));
+          
+          // Radial Heartbeat pulse wave propagation
+          float wavePos = mod(time, 4.0) * 600.0;
+          float waveDist = distToCore - wavePos;
+          float waveWindow = smoothstep(-300.0, 0.0, waveDist) * smoothstep(80.0, 0.0, waveDist);
+          float ripple = sin(waveDist * 0.08) * 0.5 + 0.5;
+          float waveFade = clamp(1.0 - distToCore / 2200.0, 0.0, 1.0);
+          float waveGlow = ripple * waveWindow * waveFade * 1.5;
+          
+          // Modulate neon brightness dynamically with the heartbeat wave and density
+          float neonIntensity = mix(0.4, 1.5, density) * (1.0 + waveGlow * 2.0);
           
           // Calculate distance to edges in local units (meters)
           float distToEdgeX = vScale.x * 0.5 - abs(vLocalPos.x);
@@ -456,8 +764,13 @@ export class MegaCity {
             traceColor = vec3(1.0, 0.25, 0.0); // Deep Orange
           }
           
+          // Apply neon intensity modulation
+          neonColor *= neonIntensity;
+          traceColor *= neonIntensity;
+          
           // Initialize light parameters
           float isLit = 0.0;
+          float isGroove = 0.0; // Dark shadow groove surrounding glowing circuits for 3D depth
           vec3 activeGlowColor = traceColor;
           
           // 1. TOP FACE: Silicon Chip connection pins or Concentric Logic Rings
@@ -465,19 +778,23 @@ export class MegaCity {
           if (vLocalNormal.y > 0.5) {
             if (vScale.y <= 35.0) {
               // Flat Silicon Chip: Grid of pins
-              float gridSpacing = 4.0;
+              float gridSpacing = 10.0;
               vec2 topGrid = vLocalPos.xz / gridSpacing;
               vec2 topFract = fract(topGrid);
               vec2 topId = floor(topGrid);
               
-              // Draw a tiny circular pin/pad at center of grid cell
+              // Draw a circular pin/pad at center of grid cell
               float distToPinCenter = length(topFract - vec2(0.5));
-              float isPin = smoothstep(0.2, 0.15, distToPinCenter);
+              float isPin = smoothstep(0.22, 0.16, distToPinCenter);
               
               // Only illuminate some pins
               float pinRand = hash(vec3(topId, hash(vInstancePos)));
-              topGlow = isPin * step(pinRand, 0.5);
+              float pinActive = step(pinRand, 0.5);
+              topGlow = isPin * pinActive;
               activeGlowColor = neonColor;
+              
+              // 3D Sunken Pin Socket Shadow
+              isGroove = smoothstep(0.3, 0.22, distToPinCenter) * pinActive;
             } else {
               // Tall Spire/Logic Tower: Concentric circular target rings
               float centerDist = length(vLocalPos.xz);
@@ -489,6 +806,11 @@ export class MegaCity {
               float ring2 = smoothstep(0.4, 0.0, abs(centerDist - r2));
               topGlow = max(ring1, ring2) * 0.8;
               activeGlowColor = neonColor;
+              
+              // Concentric 3D Grooves
+              float ringGroove1 = smoothstep(0.8, 0.4, abs(centerDist - r1));
+              float ringGroove2 = smoothstep(0.8, 0.4, abs(centerDist - r2));
+              isGroove = max(ringGroove1, ringGroove2) * 0.5;
             }
           }
           
@@ -499,16 +821,16 @@ export class MegaCity {
             float distToEdgeV = distToEdgeY;
             
             // Only draw inside building bounds (clear of border edges)
-            if (distToEdgeH > 0.6 && distToEdgeV > 0.6) {
+            if (distToEdgeH > 1.2 && distToEdgeV > 1.2) {
               if (vScale.y > 100.0) {
-                // Animated vertical falling data streams (Data Spires)
-                float flowSpeed = 35.0; // Units per second
+                // Animated vertical falling data streams (Data Spires) - speed scales with density
+                float flowSpeed = mix(15.0, 50.0, density); // Units per second
                 float flowCoord = vertCoord - time * flowSpeed;
-                float dataGridY = flowCoord / 8.0;
+                float dataGridY = flowCoord / 20.0;
                 float dataIdY = floor(dataGridY);
                 float dataFractY = fract(dataGridY);
                 
-                float dataGridX = horizCoord / 3.0;
+                float dataGridX = horizCoord / 6.0;
                 float dataIdX = floor(dataGridX);
                 float dataFractX = fract(dataGridX);
                 
@@ -516,42 +838,87 @@ export class MegaCity {
                                  step(0.2, dataFractY) * step(dataFractY, 0.8);
                 
                 float streamRand = hash(vec3(dataIdX, dataIdY, hash(vInstancePos)));
-                float isStreamActive = step(streamRand, 0.4) * (0.4 + 0.6 * sin(time * 6.0 + streamRand * 10.0));
+                
+                // Pulse frequency scales with density
+                float pulseSpeed = mix(2.0, 8.0, density);
+                float isStreamActive = step(streamRand, 0.4) * (0.4 + 0.6 * sin(time * pulseSpeed + streamRand * 10.0));
                 
                 sideGlow = isStream * isStreamActive;
-                activeGlowColor = mix(neonColor, vec3(1.0), 0.3); // extra white-hot core intensity
+                activeGlowColor = mix(neonColor, vec3(1.0) * neonIntensity, 0.3); // white-hot core
+                
+                // Vertical groove shadow
+                float isGrooveH = step(0.3, dataFractX) * step(dataFractX, 0.7);
+                float isGrooveV = step(0.1, dataFractY) * step(dataFractY, 0.9);
+                isGroove = isGrooveH * isGrooveV * (1.0 - sideGlow) * step(streamRand, 0.4) * 0.6;
                 
               } else {
-                // Circuit board logic lines and intersection pads
-                float gridSpacing = 6.0;
+                // Circuit board logic lines and intersection pads - line density scales with density
+                float gridSpacing = 12.0;
                 float traceX = horizCoord / gridSpacing;
                 float traceY = vertCoord / gridSpacing;
                 vec2 traceId = floor(vec2(traceX, traceY));
                 vec2 traceFract = fract(vec2(traceX, traceY));
                 
                 // Draw grid lines
-                float lineThickness = 0.05;
+                float lineThickness = 0.035;
                 float isLine = step(traceFract.x, lineThickness) + step(traceFract.y, lineThickness);
                 
-                // Randomly activate 35% of the lines
+                // Randomly activate lines (probability scales with density)
                 float lineRand = hash(vec3(traceId, hash(vInstancePos)));
-                isLine *= step(lineRand, 0.35);
+                float lineThreshold = 0.15 + 0.35 * density;
+                isLine *= step(lineRand, lineThreshold);
                 
                 // Draw circular contact pad at intersections
-                float dotRadius = 0.15;
+                float dotRadius = 0.16;
                 float distToIntersection = length(traceFract - vec2(0.0));
                 float isDot = smoothstep(dotRadius, dotRadius - 0.03, distToIntersection);
+                
                 // 25% of intersections have dots
-                isDot *= step(hash(vec3(traceId + 0.5, hash(vInstancePos))), 0.25);
+                float dotActive = step(hash(vec3(traceId + 0.5, hash(vInstancePos))), 0.25);
+                isDot *= dotActive;
                 
                 sideGlow = max(isLine, isDot);
                 activeGlowColor = mix(traceColor, neonColor, isDot);
+                
+                // Circuit board carved groove shadow
+                float lineGroove = (step(traceFract.x, 0.08) + step(traceFract.y, 0.08)) * step(lineRand, lineThreshold);
+                float dotGroove = smoothstep(0.24, 0.16, distToIntersection) * dotActive;
+                isGroove = max(lineGroove, dotGroove) * (1.0 - sideGlow) * 0.7;
               }
             }
           }
           
+          // 3. Volumetric Specular & Diffuse shading
+          vec3 viewDir = normalize(cameraPosition - vWorldPos);
+          vec3 normal = normalize(vLocalNormal);
+          
+          // Specular highlight from the central spire core (at x=0, y=150, z=0)
+          vec3 lightPos = vec3(0.0, 150.0, 0.0);
+          vec3 lightDir = normalize(lightPos - vWorldPos);
+          
+          // Diffuse shading (Lambertian + Rim Shading from the Spire core)
+          float diffuse = max(dot(normal, lightDir), 0.0);
+          // Add directional key light from top-left (for distinct 3D volume/edges)
+          vec3 keyLightDir = normalize(vec3(-0.5, 0.8, 0.3));
+          float keyDiffuse = max(dot(normal, keyLightDir), 0.0);
+          float totalDiffuse = mix(0.1, 0.65, diffuse * 0.6 + keyDiffuse * 0.4);
+          
+          // Fresnel effect (glass rim reflection)
+          float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 4.0);
+          vec3 glassReflection = neonColor * fresnel * 0.45;
+          
+          vec3 halfDir = normalize(lightDir + viewDir);
+          float spec = pow(max(dot(normal, halfDir), 0.0), 64.0);
+          vec3 specularHighlight = vec3(0.9, 0.95, 1.0) * spec * 0.65;
+          
+          // Deepen grooves (carved depth shadows)
+          float grooveFactor = 1.0 - isGroove;
+          
+          // Base metallic structure with ambient and volumetric diffuse shading
+          vec3 structuralColor = vec3(0.04, 0.07, 0.12) * totalDiffuse * grooveFactor;
+          
           // Assemble lighting layers
-          vec3 finalColor = baseColor;
+          vec3 finalColor = structuralColor + glassReflection * grooveFactor + specularHighlight;
           
           // Neon border glow
           finalColor = mix(finalColor, neonColor, isNeonBorder * 0.95);
@@ -576,70 +943,90 @@ export class MegaCity {
       `
     });
 
-    const instancedMesh = new THREE.InstancedMesh(geometry, this.buildingMaterial, buildingCount);
+    const maxBuildings = 2000;
+    const instancedMesh = new THREE.InstancedMesh(geometry, this.buildingMaterial, maxBuildings);
     
     const dummy = new THREE.Object3D();
     let index = 0;
 
-    // Distribute buildings, avoiding the hero structures and roads
-    while (index < buildingCount) {
-      const x = (Math.random() - 0.5) * 4000;
-      const z = (Math.random() - 0.5) * 4000;
-      
-      // Exclude Central Spire
-      if (Math.abs(x) < 300 && Math.abs(z) < 300) continue;
-      // Exclude Cross Highways
-      if (Math.abs(x) < 80 || Math.abs(z) < 80) continue;
-      if (Math.abs(x - z) < 80 || Math.abs(x + z) < 80) continue;
-      // Exclude Disc Stadium
-      if (Math.hypot(x - (-600), z - (-400)) < 250) continue;
-      // Exclude Grid Arena
-      if (x > 400 && x < 800 && z > 200 && z < 600) continue;
-      // Exclude Cloverleaf
-      if (x > -700 && x < -300 && z > 200 && z < 600) continue;
+    const gridSize = 80;
+    
+    for (let x = -2000; x <= 2000; x += gridSize) {
+      for (let z = -2000; z <= 2000; z += gridSize) {
+        if (index >= maxBuildings) break;
 
-      // Determine height based on distance from center (denser/taller near center)
-      const distToCenter = Math.hypot(x, z);
-      const maxHeight = Math.max(20, 400 - (distToCenter * 0.15));
-      
-      let width, height, depth;
-      const structRand = Math.random();
-      
-      if (structRand < 0.15) {
-        // Structural Spire (Tall, thin capacitor)
-        width = 6 + Math.random() * 8;
-        depth = 6 + Math.random() * 8;
-        height = (120 + Math.random() * 150) * (maxHeight / 400.0);
-        height = Math.max(80, height); // ensure they are sufficiently tall spires
-      } else if (structRand < 0.30) {
-        // Silicon Chip (Flat, low block)
-        width = 35 + Math.random() * 35;
-        depth = 35 + Math.random() * 35;
-        height = 10 + Math.random() * 15;
-      } else {
-        // Logic Block (Standard monolithic motherboard component)
-        width = 15 + Math.random() * 20;
-        depth = 15 + Math.random() * 20;
-        height = (35 + Math.random() * 60) * (maxHeight / 400.0);
-        height = Math.max(20, height);
+        // Exclude Central Spire
+        if (Math.abs(x) < 300 && Math.abs(z) < 300) continue;
+        // Exclude Cross Highways (X and Z axes)
+        if (Math.abs(x) < 90 || Math.abs(z) < 90) continue;
+        // Exclude Diagonal Highways
+        if (Math.abs(x - z) < 90 || Math.abs(x + z) < 90) continue;
+        // Exclude Disc Stadium
+        if (Math.hypot(x - (-600), z - (-400)) < 260) continue;
+        // Exclude Grid Arena
+        if (x > 380 && x < 820 && z > 180 && z < 620) continue;
+        // Exclude Cloverleaf
+        if (x > -720 && x < -280 && z > 180 && z < 620) continue;
+        
+        // Circular city boundary
+        const distToCenter = Math.hypot(x, z);
+        if (distToCenter > 2000) continue;
+        
+        // Randomly skip 22% of sites (slightly higher density) to create natural motherboard gaps
+        if (Math.random() < 0.22) continue;
+        
+        // We have a valid grid cell! Let's place a building:
+        const structRand = Math.random();
+        let width, height, depth;
+        
+        // Scale height based on distance
+        const maxHeight = Math.max(40, 500 - (distToCenter * 0.2));
+        
+        if (structRand < 0.15) {
+          // Data Spire (Tall, slender capacitor)
+          width = 16 + Math.random() * 6;
+          depth = 16 + Math.random() * 6;
+          height = (230 + Math.random() * 200) * (maxHeight / 500.0);
+          height = Math.max(160, height);
+        } else if (structRand < 0.35) {
+          // Silicon Chip (Flat, low block)
+          width = 54 + Math.random() * 10;
+          depth = 54 + Math.random() * 10;
+          height = 12 + Math.random() * 8;
+        } else {
+          // Logic Block (Standard monolithic motherboard component)
+          width = 30 + Math.random() * 18;
+          depth = 30 + Math.random() * 18;
+          height = (80 + Math.random() * 140) * (maxHeight / 500.0);
+          height = Math.max(40, height);
+        }
+        
+        // Footprint safety limits inside 80m grid cell (min 16m street gap width)
+        width = Math.min(width, gridSize - 16);
+        depth = Math.min(depth, gridSize - 16);
+        
+        // Slight offset within the cell for natural variation
+        const offsetX = (Math.random() - 0.5) * 4;
+        const offsetZ = (Math.random() - 0.5) * 4;
+        
+        dummy.position.set(x + offsetX, height / 2, z + offsetZ);
+        dummy.scale.set(width, height, depth);
+        dummy.updateMatrix();
+        
+        instancedMesh.setMatrixAt(index, dummy.matrix);
+        index++;
       }
-
-      dummy.position.set(x, height / 2, z);
-      dummy.scale.set(width, height, depth);
-      dummy.updateMatrix();
-      
-      instancedMesh.setMatrixAt(index, dummy.matrix);
-      index++;
     }
 
+    instancedMesh.count = index;
     instancedMesh.instanceMatrix.needsUpdate = true;
     this.scene.add(instancedMesh);
   }
 
   // Add moving light nodes representing traffic
   addTraffic(startPoint, endPoint, count) {
-    const geo = new THREE.BoxGeometry(4, 2, 8);
-    const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const geo = new THREE.BoxGeometry(1.5, 0.5, 20); // Long, thin cyan data pulses
+    const mat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
     
     const instancedMesh = new THREE.InstancedMesh(geo, mat, count);
     this.scene.add(instancedMesh);
@@ -647,10 +1034,10 @@ export class MegaCity {
     this.trafficNodes.push({
       mesh: instancedMesh,
       count: count,
-      start: startPoint,
-      end: endPoint,
+      start: startPoint.clone(),
+      end: endPoint.clone(),
       progress: Array.from({ length: count }, () => Math.random()),
-      speeds: Array.from({ length: count }, () => 0.001 + Math.random() * 0.003)
+      speeds: Array.from({ length: count }, () => 0.002 + Math.random() * 0.004) // Elegant flow speed
     });
   }
 
@@ -723,6 +1110,13 @@ export class MegaCity {
     const time = this.clock.getElapsedTime();
     if (this.floorMat) this.floorMat.uniforms.time.value = time;
     if (this.buildingMaterial) this.buildingMaterial.uniforms.time.value = time;
+
+    // Animate Tron Spire elements
+    if (this.skyBeamMat) this.skyBeamMat.uniforms.time.value = time;
+    if (this.energyCoreMesh) {
+      const pulse = 1.0 + 0.12 * Math.sin(time * 5.0);
+      this.energyCoreMesh.scale.set(pulse, 1.0, pulse);
+    }
 
     this.updateTraffic();
 
