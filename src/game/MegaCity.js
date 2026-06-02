@@ -2165,7 +2165,7 @@ export class MegaCity {
         // Exclude Submerged Industrial Generator
         if (Math.hypot(x - (-600), z - (-400)) < 120) continue;
         // Exclude Grid Arena (Monumental Ground Base)
-        if (x > 360 && x < 840 && z > 100 && z < 700) continue;
+        if (Math.hypot(x - 600, z - 400) < 360) continue;
         // Exclude Cloverleaf (Monumental Disc Arena)
         if (Math.hypot(x - (-500), z - 400) < 250) continue;
         
