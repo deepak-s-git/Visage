@@ -72,10 +72,9 @@ export class MegaCity {
     const renderPass = new RenderPass(this.scene, this.camera);
     this.composer.addPass(renderPass);
 
-    // Intense UnrealBloom to create the glowing neon Tron effect
     this.bloomPass = new UnrealBloomPass(
       new THREE.Vector2(window.innerWidth, window.innerHeight),
-      2.5,  // strength
+      1.5,  // strength
       0.8,  // radius
       0.2   // threshold
     );
@@ -566,12 +565,12 @@ export class MegaCity {
           float isGridV = step(0.94, gridV);
           float border = step(0.98, vUv.x) + step(vUv.x, 0.02) + step(0.96, vUv.y) + step(vUv.y, 0.04);
           border = clamp(border, 0.0, 1.0);
-          float intensity = max(isGridH, isGridV) * 0.35 + border * 0.85;
+          float intensity = max(isGridH, isGridV) * 0.2 + border * 0.45;
           float fresnel = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 3.0);
-          intensity += fresnel * 0.55;
+          intensity += fresnel * 0.15;
           float pulse = 0.85 + 0.15 * sin(time * 6.0 + vLocalPos.y * 0.1);
           vec3 finalColor = color * intensity * pulse;
-          gl_FragColor = vec4(finalColor, (0.1 + intensity * 0.6) * pulse);
+          gl_FragColor = vec4(finalColor, (0.04 + intensity * 0.22) * pulse);
         }
       `,
       transparent: true,
@@ -612,13 +611,13 @@ export class MegaCity {
           float gridR = sin(angle * 12.0) * 0.5 + 0.5;
           float isGridR = step(0.98, gridR) * step(dist, 0.45) * step(0.1, dist);
           float rimTrim = step(0.48, dist) * step(dist, 0.50);
-          float glow = max(concentricGlow, isGridR) * 0.65 + rimTrim * 0.95;
+          float glow = max(concentricGlow, isGridR) * 0.45 + rimTrim * 0.75;
           vec3 baseColor = (vLocalPos.x < 0.0) ? cyanColor : orangeColor;
-          vec3 finalColor = mix(baseColor * 0.12, vec3(1.0), glow);
-          finalColor += baseColor * glow * 1.5;
+          vec3 finalColor = mix(baseColor * 0.08, vec3(1.0), glow * 0.5);
+          finalColor += baseColor * glow * 0.45;
           float pulse = 0.8 + 0.2 * sin(time * 8.0);
-          finalColor += baseColor * concentricGlow * pulse * 0.5;
-          gl_FragColor = vec4(finalColor, 0.9);
+          finalColor += baseColor * concentricGlow * pulse * 0.15;
+          gl_FragColor = vec4(finalColor, 0.55);
         }
       `
     });
@@ -626,7 +625,7 @@ export class MegaCity {
     const glowCyanMat = new THREE.MeshBasicMaterial({ 
       color: 0x0088ff, 
       transparent: true, 
-      opacity: 0.6, 
+      opacity: 0.28, 
       blending: THREE.AdditiveBlending 
     });
     const brightCyanLineMat = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
@@ -692,7 +691,7 @@ export class MegaCity {
     arenaGroup.add(l1);
     
     const tierGeo2 = new THREE.TorusGeometry(160, 8, 8, 48);
-    const tier2 = new THREE.Mesh(tierGeo2, new THREE.MeshBasicMaterial({ color: 0x0044bb, transparent: true, opacity: 0.6 }));
+    const tier2 = new THREE.Mesh(tierGeo2, new THREE.MeshBasicMaterial({ color: 0x0044bb, transparent: true, opacity: 0.22 }));
     tier2.rotation.x = -Math.PI / 2;
     tier2.position.y = 14;
     arenaGroup.add(tier2);
@@ -703,7 +702,7 @@ export class MegaCity {
     arenaGroup.add(l2);
     
     const tierGeo3 = new THREE.TorusGeometry(125, 6, 8, 48);
-    const tier3 = new THREE.Mesh(tierGeo3, new THREE.MeshBasicMaterial({ color: 0x002288, transparent: true, opacity: 0.6 }));
+    const tier3 = new THREE.Mesh(tierGeo3, new THREE.MeshBasicMaterial({ color: 0x002288, transparent: true, opacity: 0.22 }));
     tier3.rotation.x = -Math.PI / 2;
     tier3.position.y = 7;
     arenaGroup.add(tier3);
@@ -933,8 +932,8 @@ export class MegaCity {
           float pulse = sin(vUv.y * 20.0 - time * 12.0) * 0.5 + 0.5;
           float fade = pow(1.0 - vUv.y, 2.0);
           float edgeFade = smoothstep(0.0, 0.2, vUv.x) * smoothstep(1.0, 0.8, vUv.x);
-          vec3 finalColor = color * (0.8 + pulse * 0.6) * 1.5;
-          gl_FragColor = vec4(finalColor, (0.15 + pulse * 0.6) * fade * edgeFade * 0.7);
+          vec3 finalColor = color * (0.6 + pulse * 0.3) * 1.0;
+          gl_FragColor = vec4(finalColor, (0.05 + pulse * 0.2) * fade * edgeFade * 0.35);
         }
       `,
       transparent: true,
@@ -952,6 +951,176 @@ export class MegaCity {
     arenaGroup.add(beacon2);
     
     this.discArenaBeaconMat = beaconShaderMat;
+
+    // --- NEW: STADIUM PORTALS, SEARCHLIGHTS, AND ARENA DECORATION ---
+    
+    // 1. Neon Gate Portals / Entrance Tunnels
+    const createGatePortal = (angle) => {
+      const portalGroup = new THREE.Group();
+      const radius = 220;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      
+      // Outer arch structural frame
+      const portalArchGeo = new THREE.TorusGeometry(22, 2.5, 8, 24, Math.PI);
+      const portalArch = new THREE.Mesh(portalArchGeo, new THREE.MeshBasicMaterial({ color: 0x001a33 }));
+      portalGroup.add(portalArch);
+      
+      // Glowing neon light border
+      const trimGeo = new THREE.TorusGeometry(22.5, 0.8, 8, 24, Math.PI);
+      const trim = new THREE.Mesh(trimGeo, new THREE.MeshBasicMaterial({ color: 0x00ffff }));
+      portalGroup.add(trim);
+      
+      // Glowing portal forcefield/shield (semi-transparent)
+      const shieldGeo = new THREE.CylinderGeometry(21.5, 21.5, 4, 16, 1, true, 0, Math.PI);
+      const shieldMat = new THREE.MeshBasicMaterial({
+        color: 0x00aaff,
+        transparent: true,
+        opacity: 0.2,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending
+      });
+      const shield = new THREE.Mesh(shieldGeo, shieldMat);
+      shield.rotation.x = Math.PI / 2;
+      portalGroup.add(shield);
+      
+      portalGroup.position.set(x, 0.2, z);
+      portalGroup.rotation.y = -angle + Math.PI / 2;
+      return portalGroup;
+    };
+    arenaGroup.add(createGatePortal(Math.PI / 2));
+    arenaGroup.add(createGatePortal(Math.PI * 1.5));
+
+    // 2. Volumetric Scanning Searchlights
+    this.stadiumSearchlights = [];
+    const beamHeight = 250;
+    const beamGeo = new THREE.CylinderGeometry(0.1, 15, beamHeight, 16, 1, true);
+    beamGeo.translate(0, beamHeight / 2, 0); // pivot at base
+    
+    const beamMat = new THREE.MeshBasicMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0.15,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    
+    const lightPosAngles = [0, Math.PI/2, Math.PI, Math.PI * 1.5];
+    lightPosAngles.forEach((angle, idx) => {
+      const x = Math.cos(angle) * wallRadius;
+      const z = Math.sin(angle) * wallRadius;
+      
+      // Metal base mount
+      const mountGeo = new THREE.CylinderGeometry(4, 5, 8, 8);
+      const mount = new THREE.Mesh(mountGeo, darkMat);
+      mount.position.set(x, wallHeight + 4, z);
+      arenaGroup.add(mount);
+      
+      // Light beam cone
+      const beam = new THREE.Mesh(beamGeo, beamMat);
+      beam.position.set(x, wallHeight + 8, z);
+      beam.rotation.x = Math.PI / 2;
+      arenaGroup.add(beam);
+      this.stadiumSearchlights.push(beam);
+    });
+
+    // 3. Central Hovering Jumbotron Core
+    const jumbotronGroup = new THREE.Group();
+    jumbotronGroup.position.set(0, 110, 0);
+    
+    const coreBoxGeo = new THREE.OctahedronGeometry(12, 1);
+    const coreBoxMat = new THREE.MeshBasicMaterial({
+      color: 0x00ffff,
+      wireframe: true
+    });
+    this.combatCentralCore = new THREE.Mesh(coreBoxGeo, coreBoxMat);
+    jumbotronGroup.add(this.combatCentralCore);
+    
+    // Central energy sphere
+    const innerCore = new THREE.Mesh(new THREE.SphereGeometry(6, 16, 16), new THREE.MeshBasicMaterial({
+      color: 0xffaa00,
+      transparent: true,
+      opacity: 0.85
+    }));
+    jumbotronGroup.add(innerCore);
+    
+    // Satellites orbiting central core
+    this.combatSatellites = [];
+    const satGeo = new THREE.BoxGeometry(2, 2, 2);
+    const numSats = 3;
+    for (let s = 0; s < numSats; s++) {
+      const sat = new THREE.Mesh(satGeo, new THREE.MeshBasicMaterial({ color: 0x00ffff }));
+      jumbotronGroup.add(sat);
+      this.combatSatellites.push({
+        mesh: sat,
+        angle: (s / numSats) * Math.PI * 2,
+        radius: 22 + s * 4,
+        speed: 0.015 + s * 0.008
+      });
+    }
+    arenaGroup.add(jumbotronGroup);
+
+    // 4. Holographic Combat Player Avatars
+    const createPlayerAvatar = (isCyan) => {
+      const pGroup = new THREE.Group();
+      const pColor = isCyan ? 0x00ffff : 0xff5500;
+      const pMat = new THREE.MeshBasicMaterial({ color: pColor, wireframe: true });
+      
+      // Wireframe body
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 3.0, 10, 6), pMat);
+      body.position.y = 5;
+      pGroup.add(body);
+      
+      // Wireframe head
+      const head = new THREE.Mesh(new THREE.SphereGeometry(1.5, 8, 8), pMat);
+      head.position.y = 11.2;
+      pGroup.add(head);
+      
+      // Battle disc in hand
+      const discMat = new THREE.MeshBasicMaterial({ color: pColor, side: THREE.DoubleSide });
+      const pDisc = new THREE.Mesh(new THREE.TorusGeometry(2, 0.4, 4, 12), discMat);
+      pDisc.position.set(isCyan ? 4 : -4, 6, 2);
+      pDisc.rotation.y = Math.PI / 4;
+      pGroup.add(pDisc);
+      
+      // Glowing base circle
+      const baseGlow = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 0.2, 16), new THREE.MeshBasicMaterial({
+        color: pColor,
+        transparent: true,
+        opacity: 0.4,
+        blending: THREE.AdditiveBlending
+      }));
+      baseGlow.position.y = 0.1;
+      pGroup.add(baseGlow);
+      
+      return pGroup;
+    };
+    
+    const cyanPlayer = createPlayerAvatar(true);
+    cyanPlayer.position.set(-35, platformHeight, 0);
+    cyanPlayer.rotation.y = Math.PI / 2;
+    arenaGroup.add(cyanPlayer);
+    
+    const orangePlayer = createPlayerAvatar(false);
+    orangePlayer.position.set(35, platformHeight, 0);
+    orangePlayer.rotation.y = -Math.PI / 2;
+    arenaGroup.add(orangePlayer);
+
+    // 5. Laser Grid Safety Ceiling
+    const netGeo = new THREE.PlaneGeometry(320, 320, 16, 16);
+    const netMat = new THREE.MeshBasicMaterial({
+      color: 0x00ccff,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.12,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const net = new THREE.Mesh(netGeo, netMat);
+    net.rotation.x = -Math.PI / 2;
+    net.position.y = 45;
+    arenaGroup.add(net);
 
     this.heroGroup.add(arenaGroup);
   }
@@ -1051,10 +1220,57 @@ export class MegaCity {
     const glowingOrangeStructMat = new THREE.MeshBasicMaterial({ 
       color: 0xff5500, 
       transparent: true, 
-      opacity: 0.25,
+      opacity: 0.12,
       blending: THREE.AdditiveBlending 
     });
     const brightOrangeLineMat = new THREE.LineBasicMaterial({ color: 0xff7700, linewidth: 2 });
+    
+    this.raceHoloWallMat = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0 },
+        color: { value: new THREE.Color(0xff4400) }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vViewDir;
+        varying vec3 vLocalPos;
+        void main() {
+          vUv = uv;
+          vLocalPos = position;
+          vNormal = normalize(normalMatrix * normal);
+          vec4 worldPos = modelMatrix * vec4(position, 1.0);
+          vViewDir = normalize(cameraPosition - worldPos.xyz);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float time;
+        uniform vec3 color;
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vViewDir;
+        varying vec3 vLocalPos;
+        void main() {
+          float gridH = sin(vUv.y * 24.0) * 0.5 + 0.5;
+          float isGridH = step(0.95, gridH);
+          float gridV = sin(vUv.x * 16.0) * 0.5 + 0.5;
+          float isGridV = step(0.95, gridV);
+          float border = step(0.98, vUv.x) + step(vUv.x, 0.02) + step(0.96, vUv.y) + step(vUv.y, 0.04);
+          border = clamp(border, 0.0, 1.0);
+          float intensity = max(isGridH, isGridV) * 0.2 + border * 0.45;
+          float fresnel = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 3.0);
+          intensity += fresnel * 0.15;
+          float pulse = 0.85 + 0.15 * sin(time * 5.0 + vLocalPos.y * 0.1);
+          vec3 finalColor = color * intensity * pulse;
+          gl_FragColor = vec4(finalColor, (0.03 + intensity * 0.20) * pulse);
+        }
+      `,
+      transparent: true,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
     
     // --- 1. DEFINING THE ANTI-GRAVITY 3D LOOP PATH (Sky-weaving Monumental) ---
     const trackPoints = [
@@ -1108,10 +1324,10 @@ export class MegaCity {
             baseColor = cyanColor;
           }
           
-          vec3 finalColor = mix(orangeColor * 0.05, vec3(1.0), trackGlow);
-          finalColor += baseColor * trackGlow * 2.0;
+          vec3 finalColor = mix(orangeColor * 0.05, vec3(1.0), trackGlow * 0.45);
+          finalColor += baseColor * trackGlow * 0.45;
           
-          gl_FragColor = vec4(finalColor, 0.65 + trackGlow * 0.35);
+          gl_FragColor = vec4(finalColor, 0.35 + trackGlow * 0.2);
         }
       `,
       transparent: true,
@@ -1125,13 +1341,13 @@ export class MegaCity {
     arenaGroup.add(this.raceTrackMesh);
 
     // Glowing rails
-    const railMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending });
-    const railGeoLeft = new THREE.TubeGeometry(this.raceCurve, 128, 3.0, 4, true);
+    const railMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending });
+    const railGeoLeft = new THREE.TubeGeometry(this.raceCurve, 128, 0.8, 4, true);
     const railLeft = new THREE.Mesh(railGeoLeft, railMat);
     railLeft.scale.set(1.04, 0.1, 1.04);
     arenaGroup.add(railLeft);
 
-    const railRight = new THREE.Mesh(railGeoLeft, new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending }));
+    const railRight = new THREE.Mesh(railGeoLeft, new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending }));
     railRight.scale.set(0.96, 0.1, 0.96);
     arenaGroup.add(railRight);
 
@@ -1282,7 +1498,7 @@ export class MegaCity {
         const trailMesh = new THREE.Mesh(trailGeo, new THREE.MeshBasicMaterial({ 
           color: color, 
           transparent: true, 
-          opacity: 0.9 - t * 0.22,
+          opacity: 0.45 - t * 0.1,
           blending: THREE.AdditiveBlending
         }));
         arenaGroup.add(trailMesh);
@@ -1319,8 +1535,8 @@ export class MegaCity {
           float pulse = sin(vUv.y * 20.0 - time * 12.0) * 0.5 + 0.5;
           float fade = pow(1.0 - vUv.y, 2.0);
           float edgeFade = smoothstep(0.0, 0.2, vUv.x) * smoothstep(1.0, 0.8, vUv.x);
-          vec3 finalColor = color * (0.8 + pulse * 0.6) * 1.5;
-          gl_FragColor = vec4(finalColor, (0.15 + pulse * 0.6) * fade * edgeFade * 0.7);
+          vec3 finalColor = color * (0.6 + pulse * 0.3) * 1.0;
+          gl_FragColor = vec4(finalColor, (0.05 + pulse * 0.2) * fade * edgeFade * 0.35);
         }
       `,
       transparent: true,
@@ -1338,6 +1554,283 @@ export class MegaCity {
     arenaGroup.add(beacon2);
     
     this.raceComplexBeaconMat = beaconShaderMat;
+
+    // --- NEW: LIGHT-RACE ARENA DECORATIVE DETAILS ---
+
+    // 1. Floating Leaderboard Jumbotron
+    const boardGroup = new THREE.Group();
+    boardGroup.position.set(-10, 60, -165);
+    
+    const backPanel = new THREE.Mesh(new THREE.BoxGeometry(100, 22, 2), darkMat);
+    boardGroup.add(backPanel);
+    
+    const frameLine = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(100, 22, 2)),
+      new THREE.LineBasicMaterial({ color: 0xffaa00, linewidth: 2 })
+    );
+    boardGroup.add(frameLine);
+    
+    const screenMat = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0 },
+        color: { value: new THREE.Color(0xff5500) }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float time;
+        uniform vec3 color;
+        varying vec2 vUv;
+        void main() {
+          float rows = sin(vUv.y * 24.0) * 0.5 + 0.5;
+          float cols = sin(vUv.x * 96.0) * 0.5 + 0.5;
+          float led = step(0.75, rows) * step(0.75, cols);
+          float textBar1 = step(0.25, vUv.y) * step(vUv.y, 0.4) * step(0.15, vUv.x) * step(vUv.x, 0.75);
+          float textBar2 = step(0.55, vUv.y) * step(vUv.y, 0.7) * step(0.08, vUv.x) * step(vUv.x, 0.9);
+          float display = max(textBar1, textBar2) * led;
+          float flicker = 0.85 + 0.15 * sin(time * 25.0);
+          gl_FragColor = vec4(color * (0.1 + display * 2.5) * flicker, (0.2 + display * 0.85) * flicker);
+        }
+      `,
+      transparent: true,
+      side: THREE.DoubleSide
+    });
+    
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(96, 18), screenMat);
+    screen.position.set(0, 0, 1.1);
+    boardGroup.add(screen);
+    this.raceLeaderboardMat = screenMat;
+    arenaGroup.add(boardGroup);
+
+    // 2. Intermediate Checkpoint Arches
+    this.checkpointArches = [];
+    const checkUValues = [0.25, 0.5, 0.75];
+    checkUValues.forEach((u, idx) => {
+      const pt = this.raceCurve.getPointAt(u);
+      const tangent = this.raceCurve.getTangentAt(u);
+      
+      const checkpointGroup = new THREE.Group();
+      checkpointGroup.position.copy(pt);
+      
+      // Structural ring frame
+      const gateTorus = new THREE.TorusGeometry(32, 2.5, 8, 24);
+      const gateRing = new THREE.Mesh(gateTorus, new THREE.MeshBasicMaterial({ color: 0x1a0d00 }));
+      checkpointGroup.add(gateRing);
+      
+      // Glowing neon light ring
+      const glowRingGeo = new THREE.TorusGeometry(32.5, 0.6, 8, 24);
+      const glowRingMat = new THREE.MeshBasicMaterial({ 
+        color: idx % 2 === 0 ? 0xff5500 : 0x00ffff, 
+        transparent: true, 
+        opacity: 0.85,
+        blending: THREE.AdditiveBlending
+      });
+      const glowRing = new THREE.Mesh(glowRingGeo, glowRingMat);
+      checkpointGroup.add(glowRing);
+      
+      checkpointGroup.lookAt(pt.clone().add(tangent));
+      arenaGroup.add(checkpointGroup);
+      
+      this.checkpointArches.push({
+        mesh: glowRing,
+        baseColor: idx % 2 === 0 ? new THREE.Color(0xff5500) : new THREE.Color(0x00ffff)
+      });
+    });
+
+    // 3. Repair/Diagnostic Scanner Rings in Pit Lanes
+    this.pitScannerRings = [];
+    const scannerRingGeo = new THREE.TorusGeometry(12, 0.3, 4, 16);
+    const scannerMat = new THREE.MeshBasicMaterial({
+      color: 0xff3300,
+      transparent: true,
+      opacity: 0.65,
+      blending: THREE.AdditiveBlending
+    });
+    for (let k = 0; k < 5; k++) {
+      const xOffset = -80 + k * 40;
+      const scannerRing = new THREE.Mesh(scannerRingGeo, scannerMat);
+      scannerRing.rotation.x = -Math.PI / 2;
+      scannerRing.position.set(xOffset, 5, 0);
+      
+      pitGroup.add(scannerRing);
+      this.pitScannerRings.push({
+        mesh: scannerRing,
+        baseY: 5,
+        offset: k * 0.7
+      });
+    }
+
+    // 4. Speed Boost Pads on Track
+    const boostUValues = [0.15, 0.45, 0.78];
+    boostUValues.forEach(u => {
+      const pt = this.raceCurve.getPointAt(u);
+      const tangent = this.raceCurve.getTangentAt(u);
+      
+      const boostPad = new THREE.Mesh(
+        new THREE.PlaneGeometry(16, 8),
+        new THREE.MeshBasicMaterial({
+          color: 0xff8800,
+          transparent: true,
+          opacity: 0.8,
+          side: THREE.DoubleSide,
+          blending: THREE.AdditiveBlending
+        })
+      );
+      // Slightly above track surface
+      boostPad.position.copy(pt).add(new THREE.Vector3(0, 0.2, 0));
+      boostPad.lookAt(pt.clone().add(tangent));
+      boostPad.rotation.x = Math.PI / 2;
+      
+      arenaGroup.add(boostPad);
+    });
+
+    // 5. Sequential Starting Lights under the Starting Arch
+    this.startingLights = [];
+    const startLightsGroup = new THREE.Group();
+    startLightsGroup.position.set(0, 75, 0); // below start arch beam
+    
+    const bulbGeo = new THREE.SphereGeometry(2.0, 16, 16);
+    for (let l = 0; l < 5; l++) {
+      const xPos = -12 + l * 6;
+      
+      const rodGeo = new THREE.CylinderGeometry(0.3, 0.3, 5, 8);
+      const rod = new THREE.Mesh(rodGeo, new THREE.MeshBasicMaterial({ color: 0x0a0a0a }));
+      rod.position.set(xPos, 2.5, 0);
+      startLightsGroup.add(rod);
+      
+      const bulbMat = new THREE.MeshBasicMaterial({ color: 0x220000 });
+      const bulb = new THREE.Mesh(bulbGeo, bulbMat);
+      bulb.position.set(xPos, 0, 0);
+      startLightsGroup.add(bulb);
+      
+      this.startingLights.push(bulb);
+    }
+    archGroup.add(startLightsGroup);
+
+    // --- 6. RACETRACK OUTER STADIUM WALLS & SPECTATOR SEATING TIER RINGS ---
+    const raceWallHeight = 90;
+    const raceWallRadius = 330;
+    const numRaceWallSegments = 16;
+    const raceSegmentWidth = 2 * raceWallRadius * Math.sin(Math.PI / numRaceWallSegments) - 8;
+    
+    const raceWallSegmentGeo = new THREE.BoxGeometry(raceSegmentWidth, raceWallHeight, 8);
+    
+    for (let i = 0; i < numRaceWallSegments; i++) {
+      // Leave entrance openings at sectors 3 and 11
+      if (i === 3 || i === 11) continue;
+      
+      const angle = (i / numRaceWallSegments) * Math.PI * 2;
+      const x = Math.cos(angle) * raceWallRadius;
+      const z = Math.sin(angle) * raceWallRadius;
+      
+      const wallMesh = new THREE.Mesh(raceWallSegmentGeo, this.raceHoloWallMat);
+      wallMesh.position.set(x, raceWallHeight / 2, z);
+      wallMesh.rotation.y = -angle + Math.PI / 2;
+      arenaGroup.add(wallMesh);
+      
+      const jointGeo = new THREE.BoxGeometry(3.5, raceWallHeight + 5, 9);
+      const joint = new THREE.Mesh(jointGeo, neonOrangeMat);
+      joint.position.set(x, raceWallHeight / 2, z);
+      joint.rotation.y = -angle + Math.PI / 2;
+      arenaGroup.add(joint);
+    }
+
+    const glowOrangeMat = new THREE.MeshBasicMaterial({ 
+      color: 0xffaa00, 
+      transparent: true, 
+      opacity: 0.22, 
+      blending: THREE.AdditiveBlending 
+    });
+    const brightOrangeLineMat2 = new THREE.LineBasicMaterial({ color: 0xff6600, linewidth: 2 });
+
+    const raceTierGeo1 = new THREE.TorusGeometry(300, 12, 8, 48);
+    const raceTier1 = new THREE.Mesh(raceTierGeo1, glowOrangeMat);
+    raceTier1.rotation.x = -Math.PI / 2;
+    raceTier1.position.y = 25;
+    arenaGroup.add(raceTier1);
+    
+    const rl1 = new THREE.LineSegments(new THREE.EdgesGeometry(raceTierGeo1), brightOrangeLineMat2);
+    rl1.rotation.x = -Math.PI / 2;
+    rl1.position.y = 25;
+    arenaGroup.add(rl1);
+    
+    const raceTierGeo2 = new THREE.TorusGeometry(265, 10, 8, 48);
+    const raceTier2 = new THREE.Mesh(raceTierGeo2, new THREE.MeshBasicMaterial({ color: 0xcc4400, transparent: true, opacity: 0.18 }));
+    raceTier2.rotation.x = -Math.PI / 2;
+    raceTier2.position.y = 15;
+    arenaGroup.add(raceTier2);
+    
+    const rl2 = new THREE.LineSegments(new THREE.EdgesGeometry(raceTierGeo2), brightOrangeLineMat2);
+    rl2.rotation.x = -Math.PI / 2;
+    rl2.position.y = 15;
+    arenaGroup.add(rl2);
+
+    // Add orange stadium spectators
+    const orangeSpecCount = 250;
+    const orangeSpecGeo = new THREE.BoxGeometry(2, 2, 2);
+    const orangeSpecMesh = new THREE.InstancedMesh(orangeSpecGeo, new THREE.MeshBasicMaterial({ color: 0xffaa00 }), orangeSpecCount);
+    arenaGroup.add(orangeSpecMesh);
+    
+    const dummySpec = new THREE.Object3D();
+    for (let i = 0; i < orangeSpecCount; i++) {
+      const tierRand = Math.random();
+      let radius, height;
+      if (tierRand < 0.5) {
+        radius = 300;
+        height = 31;
+      } else {
+        radius = 265;
+        height = 20;
+      }
+      
+      const angle = Math.random() * Math.PI * 2;
+      // Skip angles near starting gate / grandstand area
+      if (angle > 2.5 && angle < 4.0) continue;
+      
+      const x = Math.cos(angle) * (radius + (Math.random() - 0.5) * 8);
+      const z = Math.sin(angle) * (radius + (Math.random() - 0.5) * 8);
+      
+      dummySpec.position.set(x, height, z);
+      dummySpec.updateMatrix();
+      orangeSpecMesh.setMatrixAt(i, dummySpec.matrix);
+    }
+    orangeSpecMesh.instanceMatrix.needsUpdate = true;
+
+    // 7. Volumetric Scanning Searchlights (Orange)
+    this.raceSearchlights = [];
+    const raceBeamHeight = 280;
+    const raceBeamGeo = new THREE.CylinderGeometry(0.1, 16, raceBeamHeight, 16, 1, true);
+    raceBeamGeo.translate(0, raceBeamHeight / 2, 0); // pivot at base
+    
+    const raceBeamMat = new THREE.MeshBasicMaterial({
+      color: 0xff6600,
+      transparent: true,
+      opacity: 0.12,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    
+    const raceLightPosAngles = [Math.PI/4, Math.PI * 3/4, Math.PI * 5/4, Math.PI * 7/4];
+    raceLightPosAngles.forEach((angle) => {
+      const x = Math.cos(angle) * raceWallRadius;
+      const z = Math.sin(angle) * raceWallRadius;
+      
+      const mount = new THREE.Mesh(new THREE.CylinderGeometry(4, 5, 8, 8), darkMat);
+      mount.position.set(x, raceWallHeight + 4, z);
+      arenaGroup.add(mount);
+      
+      const beam = new THREE.Mesh(raceBeamGeo, raceBeamMat);
+      beam.position.set(x, raceWallHeight + 8, z);
+      beam.rotation.x = Math.PI / 2;
+      arenaGroup.add(beam);
+      this.raceSearchlights.push(beam);
+    });
 
     this.heroGroup.add(arenaGroup);
   }
@@ -2018,6 +2511,87 @@ export class MegaCity {
     if (this.holoWallMat) this.holoWallMat.uniforms.time.value = time;
     if (this.platformShaderMat) this.platformShaderMat.uniforms.time.value = time;
     if (this.raceTrackMat) this.raceTrackMat.uniforms.time.value = time;
+
+    // --- NEW: ANIMATE DETAILED ARENA STUFF ---
+    
+    // 1. Scanning searchlights
+    if (this.stadiumSearchlights) {
+      this.stadiumSearchlights.forEach((beam, idx) => {
+        beam.rotation.y = time * 0.4 + idx * Math.PI / 2;
+        beam.rotation.z = Math.sin(time * 0.7 + idx) * 0.2 + 0.25;
+      });
+    }
+
+    // 2. Central core and orbiting satellites
+    if (this.combatCentralCore) {
+      this.combatCentralCore.rotation.y = time * 0.8;
+      this.combatCentralCore.rotation.x = time * 0.4;
+    }
+    if (this.combatSatellites) {
+      this.combatSatellites.forEach(sat => {
+        sat.angle += sat.speed;
+        const x = Math.cos(sat.angle) * sat.radius;
+        const z = Math.sin(sat.angle) * sat.radius;
+        const y = Math.sin(sat.angle * 2) * 3;
+        sat.mesh.position.set(x, y, z);
+      });
+    }
+
+    // 3. Pit lane diagnostic scanner rings
+    if (this.pitScannerRings) {
+      this.pitScannerRings.forEach(scanner => {
+        const floatOffset = Math.sin(time * 4.0 + scanner.offset) * 2.5;
+        scanner.mesh.position.y = scanner.baseY + floatOffset;
+        scanner.mesh.rotation.z = time * 2.0;
+      });
+    }
+
+    // 4. Start lights sequence
+    if (this.startingLights) {
+      const cycleTime = (time * 0.2) % 1.0;
+      this.startingLights.forEach((bulb, l) => {
+        let color = 0x220000;
+        if (cycleTime < 0.85) {
+          if (l < 4) {
+            const threshold = l * 0.15;
+            if (cycleTime >= threshold) {
+              color = 0xff0000;
+            }
+          } else {
+            if (cycleTime >= 0.60) {
+              color = 0x00ff00;
+            }
+          }
+        }
+        bulb.material.color.setHex(color);
+      });
+    }
+
+    // 5. Checkpoint arches pulsing
+    if (this.checkpointArches) {
+      this.checkpointArches.forEach((arch, idx) => {
+        const pulse = 0.7 + 0.3 * Math.sin(time * 5.0 + idx);
+        arch.mesh.material.color.copy(arch.baseColor).multiplyScalar(pulse);
+      });
+    }
+
+    // 6. Leaderboard screen
+    if (this.raceLeaderboardMat) {
+      this.raceLeaderboardMat.uniforms.time.value = time;
+    }
+
+    // 7. Race outer stadium wall time uniform
+    if (this.raceHoloWallMat) {
+      this.raceHoloWallMat.uniforms.time.value = time;
+    }
+
+    // 8. Scanning orange searchlights
+    if (this.raceSearchlights) {
+      this.raceSearchlights.forEach((beam, idx) => {
+        beam.rotation.y = -time * 0.35 + idx * Math.PI / 2;
+        beam.rotation.z = Math.sin(time * 0.6 + idx) * 0.18 + 0.22;
+      });
+    }
 
     // Animate Light Cycles along track spline
     if (this.lightCycles && this.raceCurve) {
