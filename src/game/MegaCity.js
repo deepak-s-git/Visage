@@ -56,6 +56,8 @@ export class MegaCity {
     this.buildCircularStadium();
     this.buildRectangularArena();
     this.buildDenseCityBlocks();
+    this.buildMinorGridTraffic();
+    this.buildSkyHighways();
 
     // Event Listeners
     window.addEventListener('resize', this.onWindowResize.bind(this));
@@ -517,114 +519,825 @@ export class MegaCity {
   }
 
   // 4. The Cloverleaf Interchange (Bottom Left of Reference)
+  // 4. Disc Combat Arena (Bottom Left - Repurposed from Cloverleaf)
   buildCloverleaf() {
-    const cloverGroup = new THREE.Group();
-    cloverGroup.position.set(-500, 0, 400); // Bottom-left quadrant
+    const arenaGroup = new THREE.Group();
+    arenaGroup.position.set(-500, 0, 400); // Bottom-left quadrant
 
-    const curveMat = new THREE.MeshBasicMaterial({ color: 0x000511 });
-    const edgeMat = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
-
-    // Helper to create a curved highway ramp
-    const createRamp = (radius, height, startAngle, endAngle) => {
-      const curve = new THREE.EllipseCurve(0, 0, radius, radius, startAngle, endAngle, false, 0);
-      const points = curve.getPoints(50);
-      // Convert to 3D points
-      const points3d = points.map((p, i) => {
-        const progress = i / points.length;
-        // Parabolic height curve
-        const y = Math.sin(progress * Math.PI) * height; 
-        return new THREE.Vector3(p.x, y, p.y);
-      });
-
-      const path = new THREE.CatmullRomCurve3(points3d);
-      const tubeGeo = new THREE.TubeGeometry(path, 64, 10, 8, false);
-      
-      const mesh = new THREE.Mesh(tubeGeo, curveMat);
-      
-      // Add glowing edges
-      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(tubeGeo), edgeMat);
-      mesh.add(edges);
-      
-      return mesh;
-    };
-
-    // Create 4 intersecting loops
-    cloverGroup.add(createRamp(100, 40, 0, Math.PI * 1.5));
+    const darkMat = new THREE.MeshStandardMaterial({ 
+      color: 0x050a12, 
+      metalness: 0.8, 
+      roughness: 0.15 
+    });
+    const neonCyanMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+    const neonOrangeMat = new THREE.MeshBasicMaterial({ color: 0xff6600 });
     
-    const ramp2 = createRamp(120, 60, 0, Math.PI * 1.5);
-    ramp2.rotation.y = Math.PI / 2;
-    cloverGroup.add(ramp2);
+    // --- Custom Shaders for Holographic Wall and Floor ---
+    this.holoWallMat = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0 },
+        color: { value: new THREE.Color(0x00eaff) }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vViewDir;
+        varying vec3 vLocalPos;
+        void main() {
+          vUv = uv;
+          vLocalPos = position;
+          vNormal = normalize(normalMatrix * normal);
+          vec4 worldPos = modelMatrix * vec4(position, 1.0);
+          vViewDir = normalize(cameraPosition - worldPos.xyz);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float time;
+        uniform vec3 color;
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vViewDir;
+        varying vec3 vLocalPos;
+        void main() {
+          float gridH = sin(vUv.y * 30.0) * 0.5 + 0.5;
+          float isGridH = step(0.95, gridH);
+          float gridV = sin(vUv.x * 12.0) * 0.5 + 0.5;
+          float isGridV = step(0.94, gridV);
+          float border = step(0.98, vUv.x) + step(vUv.x, 0.02) + step(0.96, vUv.y) + step(vUv.y, 0.04);
+          border = clamp(border, 0.0, 1.0);
+          float intensity = max(isGridH, isGridV) * 0.35 + border * 0.85;
+          float fresnel = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 3.0);
+          intensity += fresnel * 0.55;
+          float pulse = 0.85 + 0.15 * sin(time * 6.0 + vLocalPos.y * 0.1);
+          vec3 finalColor = color * intensity * pulse;
+          gl_FragColor = vec4(finalColor, (0.1 + intensity * 0.6) * pulse);
+        }
+      `,
+      transparent: true,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
 
-    const ramp3 = createRamp(80, 80, 0, Math.PI * 1.5);
-    ramp3.rotation.y = Math.PI;
-    cloverGroup.add(ramp3);
+    this.platformShaderMat = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0 },
+        cyanColor: { value: new THREE.Color(0x00ffff) },
+        orangeColor: { value: new THREE.Color(0xff5500) }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vLocalPos;
+        void main() {
+          vUv = uv;
+          vLocalPos = position;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float time;
+        uniform vec3 cyanColor;
+        uniform vec3 orangeColor;
+        varying vec2 vUv;
+        varying vec3 vLocalPos;
+        void main() {
+          float dist = length(vUv - vec2(0.5));
+          float ring1 = step(0.44, dist) * step(dist, 0.46);
+          float ring2 = step(0.33, dist) * step(dist, 0.34);
+          float ring3 = step(0.20, dist) * step(dist, 0.21);
+          float centerNode = step(dist, 0.05);
+          float concentricGlow = max(max(max(ring1, ring2), ring3), centerNode);
+          float angle = atan(vUv.y - 0.5, vUv.x - 0.5);
+          float gridR = sin(angle * 12.0) * 0.5 + 0.5;
+          float isGridR = step(0.98, gridR) * step(dist, 0.45) * step(0.1, dist);
+          float rimTrim = step(0.48, dist) * step(dist, 0.50);
+          float glow = max(concentricGlow, isGridR) * 0.65 + rimTrim * 0.95;
+          vec3 baseColor = (vLocalPos.x < 0.0) ? cyanColor : orangeColor;
+          vec3 finalColor = mix(baseColor * 0.12, vec3(1.0), glow);
+          finalColor += baseColor * glow * 1.5;
+          float pulse = 0.8 + 0.2 * sin(time * 8.0);
+          finalColor += baseColor * concentricGlow * pulse * 0.5;
+          gl_FragColor = vec4(finalColor, 0.9);
+        }
+      `
+    });
 
-    const ramp4 = createRamp(140, 50, 0, Math.PI * 1.5);
-    ramp4.rotation.y = -Math.PI / 2;
-    cloverGroup.add(ramp4);
+    const glowCyanMat = new THREE.MeshBasicMaterial({ 
+      color: 0x0088ff, 
+      transparent: true, 
+      opacity: 0.6, 
+      blending: THREE.AdditiveBlending 
+    });
+    const brightCyanLineMat = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
 
-    this.heroGroup.add(cloverGroup);
+    // --- 1. HOLOGRAPHIC OUTER WALLS (Hexadecagon shape, R=220, height=75) ---
+    const wallHeight = 75;
+    const wallRadius = 220;
+    const numWallSegments = 16;
+    const segmentWidth = 2 * wallRadius * Math.sin(Math.PI / numWallSegments) - 6;
+    
+    const wallSegmentGeo = new THREE.BoxGeometry(segmentWidth, wallHeight, 10);
+    
+    for (let i = 0; i < numWallSegments; i++) {
+      if (i === 4 || i === 12) continue; // Entrance Gates
+      
+      const angle = (i / numWallSegments) * Math.PI * 2;
+      const x = Math.cos(angle) * wallRadius;
+      const z = Math.sin(angle) * wallRadius;
+      
+      // Holographic glowing panels
+      const wallMesh = new THREE.Mesh(wallSegmentGeo, this.holoWallMat);
+      wallMesh.position.set(x, wallHeight / 2, z);
+      wallMesh.rotation.y = -angle + Math.PI / 2;
+      arenaGroup.add(wallMesh);
+      
+      // Glowing joints
+      const jointGeo = new THREE.BoxGeometry(3, wallHeight + 4, 11);
+      const joint = new THREE.Mesh(jointGeo, neonCyanMat);
+      joint.position.set(x, wallHeight / 2, z);
+      joint.rotation.y = -angle + Math.PI / 2;
+      arenaGroup.add(joint);
+    }
+    
+    // --- 2. TOWERING ARCHED RIBS ---
+    const archRadius = 220;
+    const archTube = 5;
+    const archGeo = new THREE.TorusGeometry(archRadius, archTube, 8, 48, Math.PI);
+    const glowArchGeo = new THREE.TorusGeometry(archRadius + 2.5, 1.5, 8, 48, Math.PI);
+    
+    const numArches = 4;
+    for (let k = 0; k < numArches; k++) {
+      const angle = (k / numArches) * Math.PI;
+      
+      const arch = new THREE.Mesh(archGeo, new THREE.MeshBasicMaterial({ color: 0x001133, transparent: true, opacity: 0.6 }));
+      arch.rotation.y = angle;
+      arenaGroup.add(arch);
+      
+      const glowArch = new THREE.Mesh(glowArchGeo, neonCyanMat);
+      glowArch.rotation.y = angle;
+      arenaGroup.add(glowArch);
+    }
+
+    // --- 3. SPECTATOR SEATING TIER RINGS (Glowing cyan) ---
+    const tierGeo1 = new THREE.TorusGeometry(195, 10, 8, 48);
+    const tier1 = new THREE.Mesh(tierGeo1, glowCyanMat);
+    tier1.rotation.x = -Math.PI / 2;
+    tier1.position.y = 22;
+    arenaGroup.add(tier1);
+    
+    const l1 = new THREE.LineSegments(new THREE.EdgesGeometry(tierGeo1), brightCyanLineMat);
+    l1.rotation.x = -Math.PI / 2;
+    l1.position.y = 22;
+    arenaGroup.add(l1);
+    
+    const tierGeo2 = new THREE.TorusGeometry(160, 8, 8, 48);
+    const tier2 = new THREE.Mesh(tierGeo2, new THREE.MeshBasicMaterial({ color: 0x0044bb, transparent: true, opacity: 0.6 }));
+    tier2.rotation.x = -Math.PI / 2;
+    tier2.position.y = 14;
+    arenaGroup.add(tier2);
+    
+    const l2 = new THREE.LineSegments(new THREE.EdgesGeometry(tierGeo2), brightCyanLineMat);
+    l2.rotation.x = -Math.PI / 2;
+    l2.position.y = 14;
+    arenaGroup.add(l2);
+    
+    const tierGeo3 = new THREE.TorusGeometry(125, 6, 8, 48);
+    const tier3 = new THREE.Mesh(tierGeo3, new THREE.MeshBasicMaterial({ color: 0x002288, transparent: true, opacity: 0.6 }));
+    tier3.rotation.x = -Math.PI / 2;
+    tier3.position.y = 7;
+    arenaGroup.add(tier3);
+    
+    const l3 = new THREE.LineSegments(new THREE.EdgesGeometry(tierGeo3), brightCyanLineMat);
+    l3.rotation.x = -Math.PI / 2;
+    l3.position.y = 7;
+    arenaGroup.add(l3);
+    
+    // Spectators instanced
+    const specCount = 350;
+    const specGeo = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+    const specMesh = new THREE.InstancedMesh(specGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), specCount);
+    arenaGroup.add(specMesh);
+    
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < specCount; i++) {
+      const tierRand = Math.random();
+      let radius, height;
+      if (tierRand < 0.4) {
+        radius = 195;
+        height = 27;
+      } else if (tierRand < 0.75) {
+        radius = 160;
+        height = 18;
+      } else {
+        radius = 125;
+        height = 10;
+      }
+      
+      const angle = Math.random() * Math.PI * 2;
+      const x = Math.cos(angle) * (radius + (Math.random() - 0.5) * 6);
+      const z = Math.sin(angle) * (radius + (Math.random() - 0.5) * 6);
+      
+      dummy.position.set(x, height, z);
+      dummy.updateMatrix();
+      specMesh.setMatrixAt(i, dummy.matrix);
+      
+      const color = Math.random() < 0.55 ? new THREE.Color(0x00ffff) : new THREE.Color(0xff5500);
+      specMesh.setColorAt(i, color);
+    }
+    specMesh.instanceMatrix.needsUpdate = true;
+    if (specMesh.instanceColor) specMesh.instanceColor.needsUpdate = true;
+    
+    // --- 4. CENTRAL COMBAT PLATFORM ---
+    const platformRadius = 85;
+    const platformHeight = 12;
+    const platform = new THREE.Mesh(new THREE.CylinderGeometry(platformRadius, platformRadius + 8, platformHeight, 32), this.platformShaderMat);
+    platform.position.y = platformHeight / 2;
+    arenaGroup.add(platform);
+    
+    // Support columns under platform
+    const subColGeo = new THREE.CylinderGeometry(6, 6, platformHeight, 8);
+    for (let j = 0; j < 8; j++) {
+      const angle = (j / 8) * Math.PI * 2;
+      const x = Math.cos(angle) * (platformRadius - 15);
+      const z = Math.sin(angle) * (platformRadius - 15);
+      const subCol = new THREE.Mesh(subColGeo, darkMat);
+      subCol.position.set(x, platformHeight / 2, z);
+      arenaGroup.add(subCol);
+    }
+
+    // Central dividing line
+    const dividerGeo = new THREE.BoxGeometry(4, 0.4, platformRadius * 2 - 4);
+    const divider = new THREE.Mesh(dividerGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    divider.position.set(0, platformHeight + 0.3, 0);
+    arenaGroup.add(divider);
+
+    // --- 5. GLOWING PATHWAYS LEADING IN ---
+    const createEntrancePath = (xOffset, zOffset, length, rotY) => {
+      const roadGeo = new THREE.PlaneGeometry(40, length);
+      const roadMat = new THREE.MeshBasicMaterial({ 
+        color: 0x003366, 
+        transparent: true, 
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending 
+      });
+      const road = new THREE.Mesh(roadGeo, roadMat);
+      road.rotation.x = -Math.PI / 2;
+      
+      const edgeL = new THREE.Mesh(new THREE.PlaneGeometry(2.5, length), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
+      edgeL.rotation.x = -Math.PI / 2;
+      edgeL.position.set(-18.5, 0.2, 0);
+      
+      const edgeR = new THREE.Mesh(new THREE.PlaneGeometry(2.5, length), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
+      edgeR.rotation.x = -Math.PI / 2;
+      edgeR.position.set(18.5, 0.2, 0);
+      
+      const lane1 = new THREE.Mesh(new THREE.PlaneGeometry(1.5, length), new THREE.MeshBasicMaterial({ color: 0x00bfff }));
+      lane1.rotation.x = -Math.PI / 2;
+      lane1.position.set(-6, 0.15, 0);
+      
+      const lane2 = new THREE.Mesh(new THREE.PlaneGeometry(1.5, length), new THREE.MeshBasicMaterial({ color: 0x00bfff }));
+      lane2.rotation.x = -Math.PI / 2;
+      lane2.position.set(6, 0.15, 0);
+      
+      const centerStrip = new THREE.Mesh(new THREE.PlaneGeometry(2, length), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      centerStrip.rotation.x = -Math.PI / 2;
+      centerStrip.position.set(0, 0.2, 0);
+      
+      const pathGroup = new THREE.Group();
+      pathGroup.add(road);
+      pathGroup.add(edgeL);
+      pathGroup.add(edgeR);
+      pathGroup.add(lane1);
+      pathGroup.add(lane2);
+      pathGroup.add(centerStrip);
+      
+      pathGroup.position.set(xOffset, 1.5, zOffset);
+      pathGroup.rotation.y = rotY;
+      return pathGroup;
+    };
+    
+    arenaGroup.add(createEntrancePath(0, 240, 120, 0));
+    arenaGroup.add(createEntrancePath(0, -240, 120, 0));
+
+    // --- 6. FLOATING HOLOGRAPHIC SCOREBOARDS ---
+    this.holoScoreboards = [];
+    const holoMat = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0 },
+        color: { value: new THREE.Color(0x00ffff) }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float time;
+        uniform vec3 color;
+        varying vec2 vUv;
+        void main() {
+          float gridX = sin(vUv.x * 30.0) * 0.5 + 0.5;
+          float gridY = sin(vUv.y * 15.0) * 0.5 + 0.5;
+          float grid = step(0.96, gridX) + step(0.96, gridY);
+          float border = step(0.97, vUv.x) + step(vUv.x, 0.03) + step(0.95, vUv.y) + step(vUv.y, 0.05);
+          border = clamp(border, 0.0, 1.0);
+          float flicker = 0.8 + 0.2 * sin(time * 25.0 + vUv.y * 10.0);
+          float scanline = sin(vUv.y * 120.0 + time * 8.0) * 0.15 + 0.85;
+          float mask = grid * 0.2 + border * 0.8;
+          gl_FragColor = vec4(color * (0.5 + mask * 1.5) * scanline * flicker, (0.15 + mask * 0.7) * flicker);
+        }
+      `,
+      transparent: true,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    
+    const holoGeo = new THREE.PlaneGeometry(70, 30);
+    const numHolo = 4;
+    for (let i = 0; i < numHolo; i++) {
+      const angle = (i / numHolo) * Math.PI * 2;
+      const x = Math.cos(angle) * 130;
+      const z = Math.sin(angle) * 130;
+      
+      const scoreboard = new THREE.Mesh(holoGeo, holoMat);
+      scoreboard.position.set(x, 95, z);
+      scoreboard.lookAt(new THREE.Vector3(-500, 30, 400));
+      scoreboard.rotation.x = -0.25;
+      
+      arenaGroup.add(scoreboard);
+      this.holoScoreboards.push({
+        mesh: scoreboard,
+        angle: angle,
+        radius: 130,
+        baseY: 95
+      });
+    }
+
+    // --- 7. HOLOGRAPHIC COMBAT DISC ---
+    const discGeo = new THREE.TorusGeometry(12, 1.6, 8, 24);
+    this.combatDisc = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: 0xffaa00 }));
+    this.combatDisc.rotation.x = -Math.PI / 2;
+    this.combatDisc.position.set(-15, platformHeight + 5, -15);
+    arenaGroup.add(this.combatDisc);
+
+    // --- 8. OUTER PANEL RIM SIGNAGE ---
+    const rimTextGeo = new THREE.TorusGeometry(220, 2, 8, 64);
+    const rimTextMesh = new THREE.Mesh(rimTextGeo, new THREE.MeshBasicMaterial({ color: 0x00ffff }));
+    rimTextMesh.rotation.x = -Math.PI / 2;
+    rimTextMesh.position.y = wallHeight + 1.0;
+    arenaGroup.add(rimTextMesh);
+    
+    const numPanels = 18;
+    const panelGeo = new THREE.BoxGeometry(20, 4, 3);
+    const panelGlowGeo = new THREE.BoxGeometry(16, 2.5, 0.5);
+    for (let p = 0; p < numPanels; p++) {
+      const angle = (p / numPanels) * Math.PI * 2;
+      const x = Math.cos(angle) * 221;
+      const z = Math.sin(angle) * 221;
+      
+      const panel = new THREE.Mesh(panelGeo, darkMat);
+      panel.position.set(x, wallHeight - 2, z);
+      panel.rotation.y = -angle + Math.PI / 2;
+      arenaGroup.add(panel);
+      
+      const isCyan = Math.random() < 0.7;
+      const rimPanelGlowMat = new THREE.MeshBasicMaterial({ color: isCyan ? 0x00ffff : 0xffaa00 });
+      const pGlow = new THREE.Mesh(panelGlowGeo, rimPanelGlowMat);
+      pGlow.position.set(x, wallHeight - 2, z + (z > 0 ? 1.6 : -1.6));
+      pGlow.rotation.y = -angle + Math.PI / 2;
+      arenaGroup.add(pGlow);
+    }
+
+    // --- 9. CYAN VOLUMETRIC WAYPOINT BEACON ---
+    const beaconGeo = new THREE.PlaneGeometry(12, 600);
+    const beaconShaderMat = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0 },
+        color: { value: new THREE.Color(0x00f0ff) }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float time;
+        uniform vec3 color;
+        varying vec2 vUv;
+        void main() {
+          float pulse = sin(vUv.y * 20.0 - time * 12.0) * 0.5 + 0.5;
+          float fade = pow(1.0 - vUv.y, 2.0);
+          float edgeFade = smoothstep(0.0, 0.2, vUv.x) * smoothstep(1.0, 0.8, vUv.x);
+          vec3 finalColor = color * (0.8 + pulse * 0.6) * 1.5;
+          gl_FragColor = vec4(finalColor, (0.15 + pulse * 0.6) * fade * edgeFade * 0.7);
+        }
+      `,
+      transparent: true,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    
+    const beacon1 = new THREE.Mesh(beaconGeo, beaconShaderMat);
+    beacon1.position.set(0, 250, 0);
+    arenaGroup.add(beacon1);
+    
+    const beacon2 = beacon1.clone();
+    beacon2.rotation.y = Math.PI / 2;
+    arenaGroup.add(beacon2);
+    
+    this.discArenaBeaconMat = beaconShaderMat;
+
+    this.heroGroup.add(arenaGroup);
   }
 
-  // 5. Disc Combat Stadium (Circular Arena, Top Left)
+  // 5. Submerged Industrial Generator (Top Left - Repurposed from Empty Ring)
   buildCircularStadium() {
     const stadiumGroup = new THREE.Group();
     stadiumGroup.position.set(-600, 0, -400);
 
-    // Main Outer Bowl
-    const bowlGeo = new THREE.TorusGeometry(150, 40, 16, 64);
-    const darkMat = new THREE.MeshStandardMaterial({ color: 0x000a1a, metalness: 0.8, roughness: 0.2 });
+    const ringY = 15;
+
+    // Main Outer Industrial Ring (Torus) - Dark Metallic Matte
+    const bowlGeo = new THREE.TorusGeometry(140, 25, 16, 64);
+    const darkMat = new THREE.MeshStandardMaterial({ 
+      color: 0x070c14, 
+      metalness: 0.4, 
+      roughness: 0.8 
+    });
     const bowl = new THREE.Mesh(bowlGeo, darkMat);
     bowl.rotation.x = -Math.PI / 2;
-    bowl.position.y = 40;
+    bowl.position.y = ringY;
     stadiumGroup.add(bowl);
 
-    // Glowing Rings inside
-    const ringGeo1 = new THREE.TorusGeometry(120, 2, 8, 64);
-    const glowMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-    const ring1 = new THREE.Mesh(ringGeo1, glowMat);
-    ring1.rotation.x = -Math.PI / 2;
-    ring1.position.y = 10;
-    stadiumGroup.add(ring1);
+    // Subtle edge lines - Dim electric blue
+    const ringEdges = new THREE.EdgesGeometry(bowlGeo);
+    const ringEdgeLines = new THREE.LineSegments(
+      ringEdges, 
+      new THREE.LineBasicMaterial({ color: 0x004477, linewidth: 1 })
+    );
+    ringEdgeLines.rotation.x = -Math.PI / 2;
+    ringEdgeLines.position.y = ringY;
+    stadiumGroup.add(ringEdgeLines);
 
-    const ringGeo2 = new THREE.TorusGeometry(80, 1, 8, 64);
-    const ring2 = new THREE.Mesh(ringGeo2, glowMat);
+    // Concrete support pillars
+    const pillarGeo = new THREE.CylinderGeometry(8, 12, ringY + 10, 8);
+    const numPillars = 8;
+    for (let i = 0; i < numPillars; i++) {
+      const angle = (i / numPillars) * Math.PI * 2;
+      const x = Math.cos(angle) * 140;
+      const z = Math.sin(angle) * 140;
+      
+      const pillar = new THREE.Mesh(pillarGeo, darkMat);
+      pillar.position.set(x, (ringY + 10) / 2 - 5, z);
+      stadiumGroup.add(pillar);
+      
+      const bracketGeo = new THREE.CylinderGeometry(13, 13, 3, 8);
+      const bracket = new THREE.Mesh(bracketGeo, darkMat);
+      bracket.position.set(x, ringY - 2, z);
+      stadiumGroup.add(bracket);
+    }
+
+    // Central generator component
+    const coreGeo = new THREE.CylinderGeometry(60, 70, 20, 16);
+    const generatorCore = new THREE.Mesh(coreGeo, darkMat);
+    generatorCore.position.y = 10;
+    stadiumGroup.add(generatorCore);
+
+    // Dim, slow-pulsing circular status indicators
+    const ringGeo2 = new THREE.TorusGeometry(80, 2, 8, 64);
+    const dimGlowMat = new THREE.MeshBasicMaterial({ color: 0x003366 });
+    const ring2 = new THREE.Mesh(ringGeo2, dimGlowMat);
     ring2.rotation.x = -Math.PI / 2;
-    ring2.position.y = 5;
+    ring2.position.y = 15;
     stadiumGroup.add(ring2);
 
-    // Glowing pitch (center)
-    const pitchGeo = new THREE.CircleGeometry(60, 32);
-    const pitchMat = new THREE.MeshBasicMaterial({ color: 0x002244 });
-    const pitch = new THREE.Mesh(pitchGeo, pitchMat);
-    pitch.rotation.x = -Math.PI / 2;
-    pitch.position.y = 1;
-    stadiumGroup.add(pitch);
+    // Connect to city fabric with industrial conduits
+    const pipeGeo = new THREE.CylinderGeometry(4, 4, 160, 8);
+    const directions = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
+    directions.forEach(angle => {
+      const pipe = new THREE.Mesh(pipeGeo, darkMat);
+      pipe.rotation.z = Math.PI / 2;
+      pipe.rotation.y = angle;
+      pipe.position.set(80 * Math.cos(angle), 5, 80 * Math.sin(angle));
+      stadiumGroup.add(pipe);
+      
+      const lineGeo = new THREE.BoxGeometry(160, 0.5, 0.5);
+      const line = new THREE.Mesh(lineGeo, new THREE.MeshBasicMaterial({ color: 0x003366 }));
+      line.rotation.y = angle;
+      line.position.set(80 * Math.cos(angle), 9.5, 80 * Math.sin(angle));
+      stadiumGroup.add(line);
+    });
 
     this.heroGroup.add(stadiumGroup);
   }
 
-  // 6. Rectangular Grid Arena (Bottom Right)
+  // 6. Light-Race Complex (Bottom Right - Repurposed from Rectangular Arena)
   buildRectangularArena() {
     const arenaGroup = new THREE.Group();
     arenaGroup.position.set(600, 0, 400);
 
-    // Floor Base
-    const baseGeo = new THREE.BoxGeometry(300, 10, 400);
-    const darkMat = new THREE.MeshStandardMaterial({ color: 0x000511, metalness: 0.9, roughness: 0.1 });
-    const base = new THREE.Mesh(baseGeo, darkMat);
-    arenaGroup.add(base);
+    const darkMat = new THREE.MeshStandardMaterial({ 
+      color: 0x050a12, 
+      metalness: 0.85, 
+      roughness: 0.15 
+    });
+    const neonOrangeMat = new THREE.MeshBasicMaterial({ color: 0xff6600 });
+    const glowingOrangeStructMat = new THREE.MeshBasicMaterial({ 
+      color: 0xff5500, 
+      transparent: true, 
+      opacity: 0.25,
+      blending: THREE.AdditiveBlending 
+    });
+    const brightOrangeLineMat = new THREE.LineBasicMaterial({ color: 0xff7700, linewidth: 2 });
+    
+    // --- 1. DEFINING THE ANTI-GRAVITY 3D LOOP PATH (Sky-weaving Monumental) ---
+    const trackPoints = [
+      new THREE.Vector3(-140, 10, -220),
+      new THREE.Vector3(120, 12, -220),
+      new THREE.Vector3(260, 45, -120),
+      new THREE.Vector3(240, 110, 40),
+      new THREE.Vector3(80, 180, 160),
+      new THREE.Vector3(-120, 130, 240),
+      new THREE.Vector3(-240, 80, 120),
+      new THREE.Vector3(-200, 30, -30),
+      new THREE.Vector3(-240, 15, -120),
+    ];
+    
+    this.raceCurve = new THREE.CatmullRomCurve3(trackPoints);
+    this.raceCurve.closed = true;
 
-    // Glowing Perimeter Wall
-    const wallGeo = new THREE.BoxGeometry(320, 40, 420);
-    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(wallGeo), new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 }));
-    edges.position.y = 15;
-    arenaGroup.add(edges);
+    // --- 2. GENERATING THE TRACK GEOMETRY ---
+    this.raceTrackMat = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0 },
+        orangeColor: { value: new THREE.Color(0xff5500) },
+        cyanColor: { value: new THREE.Color(0x00ffff) }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float time;
+        uniform vec3 orangeColor;
+        uniform vec3 cyanColor;
+        varying vec2 vUv;
+        
+        void main() {
+          float uScroll = vUv.x * 80.0 - time * 12.0;
+          float vCenter = fract(vUv.y * 2.0);
+          float distToCenter = abs(vCenter - 0.5) * 2.0;
+          
+          float chevron = sin(uScroll - distToCenter * 4.0) * 0.5 + 0.5;
+          float chevronActive = step(0.92, chevron) * step(distToCenter, 0.7);
+          float borderLanes = step(0.85, distToCenter);
+          float centerDash = step(0.97, sin(uScroll)) * step(distToCenter, 0.08);
+          
+          float trackGlow = max(max(chevronActive * 0.8, borderLanes * 0.95), centerDash * 1.0);
+          vec3 baseColor = orangeColor;
+          if (centerDash > 0.5) {
+            baseColor = cyanColor;
+          }
+          
+          vec3 finalColor = mix(orangeColor * 0.05, vec3(1.0), trackGlow);
+          finalColor += baseColor * trackGlow * 2.0;
+          
+          gl_FragColor = vec4(finalColor, 0.65 + trackGlow * 0.35);
+        }
+      `,
+      transparent: true,
+      depthWrite: true,
+      side: THREE.DoubleSide
+    });
 
-    // Glowing Inner Grid
-    const gridHelper = new THREE.GridHelper(300, 10, 0x00ffff, 0x0088ff);
-    gridHelper.position.y = 6;
-    arenaGroup.add(gridHelper);
+    const tubeGeo = new THREE.TubeGeometry(this.raceCurve, 128, 25, 8, true);
+    this.raceTrackMesh = new THREE.Mesh(tubeGeo, this.raceTrackMat);
+    this.raceTrackMesh.scale.set(1.0, 0.08, 1.0);
+    arenaGroup.add(this.raceTrackMesh);
+
+    // Glowing rails
+    const railMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending });
+    const railGeoLeft = new THREE.TubeGeometry(this.raceCurve, 128, 3.0, 4, true);
+    const railLeft = new THREE.Mesh(railGeoLeft, railMat);
+    railLeft.scale.set(1.04, 0.1, 1.04);
+    arenaGroup.add(railLeft);
+
+    const railRight = new THREE.Mesh(railGeoLeft, new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending }));
+    railRight.scale.set(0.96, 0.1, 0.96);
+    arenaGroup.add(railRight);
+
+    // --- 3. STARTING GRID & START ARCH ---
+    const gridStartPos = new THREE.Vector3(-10, 2, -220);
+    
+    const gridPadGeo = new THREE.BoxGeometry(180, 0.5, 50);
+    const gridPad = new THREE.Mesh(gridPadGeo, glowingOrangeStructMat);
+    gridPad.position.copy(gridStartPos);
+    arenaGroup.add(gridPad);
+    
+    const linesPad = new THREE.LineSegments(new THREE.EdgesGeometry(gridPadGeo), brightOrangeLineMat);
+    linesPad.position.copy(gridStartPos);
+    arenaGroup.add(linesPad);
+    
+    const gridLinesGeo = new THREE.BoxGeometry(160, 0.2, 2);
+    for (let j = -20; j <= 20; j += 8) {
+      const line = new THREE.Mesh(gridLinesGeo, new THREE.MeshBasicMaterial({ color: 0xff9900 }));
+      line.position.copy(gridStartPos).add(new THREE.Vector3(0, 0.4, j));
+      arenaGroup.add(line);
+    }
+    
+    const archGroup = new THREE.Group();
+    const columnGeo = new THREE.BoxGeometry(10, 85, 10);
+    
+    const colL = new THREE.Mesh(columnGeo, glowingOrangeStructMat);
+    colL.position.set(-50, 42.5, 0);
+    archGroup.add(colL);
+    
+    const linesL = new THREE.LineSegments(new THREE.EdgesGeometry(columnGeo), brightOrangeLineMat);
+    linesL.position.set(-50, 42.5, 0);
+    archGroup.add(linesL);
+    
+    const colR = new THREE.Mesh(columnGeo, glowingOrangeStructMat);
+    colR.position.set(50, 42.5, 0);
+    archGroup.add(colR);
+    
+    const linesR = new THREE.LineSegments(new THREE.EdgesGeometry(columnGeo), brightOrangeLineMat);
+    linesR.position.set(50, 42.5, 0);
+    archGroup.add(linesR);
+    
+    const beamGeo = new THREE.BoxGeometry(110, 10, 12);
+    const beam = new THREE.Mesh(beamGeo, glowingOrangeStructMat);
+    beam.position.set(0, 85, 0);
+    archGroup.add(beam);
+    
+    const linesBeam = new THREE.LineSegments(new THREE.EdgesGeometry(beamGeo), brightOrangeLineMat);
+    linesBeam.position.set(0, 85, 0);
+    archGroup.add(linesBeam);
+    
+    const signGeo = new THREE.BoxGeometry(80, 4, 13);
+    const sign = new THREE.Mesh(signGeo, new THREE.MeshBasicMaterial({ color: 0xffaa00 }));
+    sign.position.set(0, 80, 0);
+    archGroup.add(sign);
+    
+    archGroup.position.copy(gridStartPos);
+    arenaGroup.add(archGroup);
+
+    // --- 4. PIT LANES ---
+    const pitGroup = new THREE.Group();
+    pitGroup.position.set(-10, 1, -260);
+    
+    const pitBaseGeo = new THREE.BoxGeometry(220, 6, 35);
+    const pitBase = new THREE.Mesh(pitBaseGeo, glowingOrangeStructMat);
+    pitGroup.add(pitBase);
+    
+    const linesPitBase = new THREE.LineSegments(new THREE.EdgesGeometry(pitBaseGeo), brightOrangeLineMat);
+    pitGroup.add(linesPitBase);
+    
+    const bayGeo = new THREE.BoxGeometry(32, 18, 25);
+    const bayGlowGeo = new THREE.BoxGeometry(28, 14, 1);
+    for (let k = 0; k < 5; k++) {
+      const xOffset = -80 + k * 40;
+      const bay = new THREE.Mesh(bayGeo, glowingOrangeStructMat);
+      bay.position.set(xOffset, 9, 0);
+      pitGroup.add(bay);
+      
+      const linesBay = new THREE.LineSegments(new THREE.EdgesGeometry(bayGeo), brightOrangeLineMat);
+      linesBay.position.set(xOffset, 9, 0);
+      pitGroup.add(linesBay);
+      
+      const bayGlow = new THREE.Mesh(bayGlowGeo, new THREE.MeshBasicMaterial({ color: 0xff4400 }));
+      bayGlow.position.set(xOffset, 9, 12.6);
+      pitGroup.add(bayGlow);
+    }
+    arenaGroup.add(pitGroup);
+
+    // --- 5. ELEVATED GRANDSTAND ---
+    const grandstand = new THREE.Group();
+    grandstand.position.set(-10, 1, -165);
+    
+    const baseStepGeo = new THREE.BoxGeometry(220, 10, 40);
+    const step1 = new THREE.Mesh(baseStepGeo, glowingOrangeStructMat);
+    step1.position.y = 5;
+    grandstand.add(step1);
+    
+    const linesStep1 = new THREE.LineSegments(new THREE.EdgesGeometry(baseStepGeo), brightOrangeLineMat);
+    linesStep1.position.y = 5;
+    grandstand.add(linesStep1);
+    
+    const step2Geo = new THREE.BoxGeometry(220, 10, 25);
+    const step2 = new THREE.Mesh(step2Geo, glowingOrangeStructMat);
+    step2.position.set(0, 15, -7.5);
+    grandstand.add(step2);
+    
+    const linesStep2 = new THREE.LineSegments(new THREE.EdgesGeometry(step2Geo), brightOrangeLineMat);
+    linesStep2.position.set(0, 15, -7.5);
+    grandstand.add(linesStep2);
+    
+    const canopyGeo = new THREE.BoxGeometry(230, 4, 45);
+    const canopy = new THREE.Mesh(canopyGeo, glowingOrangeStructMat);
+    canopy.position.set(0, 40, -5);
+    grandstand.add(canopy);
+    
+    const linesCanopy = new THREE.LineSegments(new THREE.EdgesGeometry(canopyGeo), brightOrangeLineMat);
+    linesCanopy.position.set(0, 40, -5);
+    grandstand.add(linesCanopy);
+    
+    const canopyGlow = new THREE.Mesh(new THREE.BoxGeometry(220, 0.5, 38), neonOrangeMat);
+    canopyGlow.position.set(0, 37.8, -5);
+    grandstand.add(canopyGlow);
+    
+    const grandColumnGeo = new THREE.CylinderGeometry(2, 2, 40, 8);
+    for (let c = -100; c <= 100; c += 200) {
+      const col = new THREE.Mesh(grandColumnGeo, glowingOrangeStructMat);
+      col.position.set(c, 20, 15);
+      col.rotation.z = -c * 0.001;
+      grandstand.add(col);
+    }
+    arenaGroup.add(grandstand);
+
+    // --- 6. RACING LIGHT CYCLES WITH SOLID LIGHT TRAILS ---
+    const numCycles = 4;
+    const cycleGeo = new THREE.BoxGeometry(3.5, 1.4, 7.0);
+    
+    this.lightCycles = [];
+    
+    for (let i = 0; i < numCycles; i++) {
+      const color = i < 2 ? 0xff5500 : 0x00ffff;
+      const mat = new THREE.MeshBasicMaterial({ color: color });
+      
+      const cycleMesh = new THREE.Mesh(cycleGeo, mat);
+      arenaGroup.add(cycleMesh);
+      
+      const trails = [];
+      for (let t = 0; t < 4; t++) {
+        const trailGeo = new THREE.BoxGeometry(0.4, 6, 12);
+        const trailMesh = new THREE.Mesh(trailGeo, new THREE.MeshBasicMaterial({ 
+          color: color, 
+          transparent: true, 
+          opacity: 0.9 - t * 0.22,
+          blending: THREE.AdditiveBlending
+        }));
+        arenaGroup.add(trailMesh);
+        trails.push(trailMesh);
+      }
+      
+      this.lightCycles.push({
+        mesh: cycleMesh,
+        trails: trails,
+        progress: (i / numCycles) * 0.9,
+        speed: 0.0035 + Math.random() * 0.0015
+      });
+    }
+
+    // --- 7. ORANGE VOLUMETRIC WAYPOINT BEACON ---
+    const beaconGeo = new THREE.PlaneGeometry(12, 600);
+    const beaconShaderMat = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0 },
+        color: { value: new THREE.Color(0xff5500) }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float time;
+        uniform vec3 color;
+        varying vec2 vUv;
+        void main() {
+          float pulse = sin(vUv.y * 20.0 - time * 12.0) * 0.5 + 0.5;
+          float fade = pow(1.0 - vUv.y, 2.0);
+          float edgeFade = smoothstep(0.0, 0.2, vUv.x) * smoothstep(1.0, 0.8, vUv.x);
+          vec3 finalColor = color * (0.8 + pulse * 0.6) * 1.5;
+          gl_FragColor = vec4(finalColor, (0.15 + pulse * 0.6) * fade * edgeFade * 0.7);
+        }
+      `,
+      transparent: true,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    
+    const beacon1 = new THREE.Mesh(beaconGeo, beaconShaderMat);
+    beacon1.position.set(0, 250, 0);
+    arenaGroup.add(beacon1);
+    
+    const beacon2 = beacon1.clone();
+    beacon2.rotation.y = Math.PI / 2;
+    arenaGroup.add(beacon2);
+    
+    this.raceComplexBeaconMat = beaconShaderMat;
 
     this.heroGroup.add(arenaGroup);
   }
@@ -956,12 +1669,12 @@ export class MegaCity {
         if (Math.abs(x) < 90 || Math.abs(z) < 90) continue;
         // Exclude Diagonal Highways
         if (Math.abs(x - z) < 90 || Math.abs(x + z) < 90) continue;
-        // Exclude Disc Stadium
-        if (Math.hypot(x - (-600), z - (-400)) < 260) continue;
-        // Exclude Grid Arena
-        if (x > 380 && x < 820 && z > 180 && z < 620) continue;
-        // Exclude Cloverleaf
-        if (x > -720 && x < -280 && z > 180 && z < 620) continue;
+        // Exclude Submerged Industrial Generator
+        if (Math.hypot(x - (-600), z - (-400)) < 120) continue;
+        // Exclude Grid Arena (Monumental Ground Base)
+        if (x > 360 && x < 840 && z > 100 && z < 700) continue;
+        // Exclude Cloverleaf (Monumental Disc Arena)
+        if (Math.hypot(x - (-500), z - 400) < 250) continue;
         
         // Circular city boundary
         const distToCenter = Math.hypot(x, z);
@@ -1056,6 +1769,165 @@ export class MegaCity {
     });
   }
 
+  buildMinorGridTraffic() {
+    const minorTrafficGeo = new THREE.BoxGeometry(0.8, 0.4, 3.0);
+    const minorTrafficMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    
+    const count = 400;
+    this.minorTrafficMesh = new THREE.InstancedMesh(minorTrafficGeo, minorTrafficMat, count);
+    this.heroGroup.add(this.minorTrafficMesh);
+    
+    this.minorTrafficNodes = [];
+    
+    const gridSize = 80;
+    let placed = 0;
+    let attempts = 0;
+    while (placed < count && attempts < 1500) {
+      attempts++;
+      const gridX = (Math.floor(Math.random() * 40) - 20) * gridSize;
+      const gridZ = (Math.floor(Math.random() * 40) - 20) * gridSize;
+      if (Math.hypot(gridX, gridZ) > 1800) continue;
+      
+      // Determine if horizontal (along X) or vertical (along Z) street
+      const isHorizontal = Math.random() < 0.5;
+      let start, end;
+      
+      if (isHorizontal) {
+        start = new THREE.Vector3(gridX - gridSize/2, 1.5, gridZ + 40);
+        end = new THREE.Vector3(gridX + gridSize/2, 1.5, gridZ + 40);
+      } else {
+        start = new THREE.Vector3(gridX + 40, 1.5, gridZ - gridSize/2);
+        end = new THREE.Vector3(gridX + 40, 1.5, gridZ + gridSize/2);
+      }
+      
+      const colorType = Math.random() < 0.15 ? 'orange' : 'cyan';
+      
+      this.minorTrafficNodes.push({
+        start: start,
+        end: end,
+        progress: Math.random(),
+        speed: 0.003 + Math.random() * 0.007,
+        colorType: colorType
+      });
+      
+      const col = colorType === 'orange' ? new THREE.Color(0xff6600) : new THREE.Color(0x00ffff);
+      this.minorTrafficMesh.setColorAt(placed, col);
+      placed++;
+    }
+    this.minorTrafficMesh.count = placed;
+    this.minorTrafficMesh.instanceMatrix.needsUpdate = true;
+    if (this.minorTrafficMesh.instanceColor) {
+      this.minorTrafficMesh.instanceColor.needsUpdate = true;
+    }
+  }
+
+  updateMinorTraffic() {
+    if (!this.minorTrafficMesh) return;
+    
+    const dummy = new THREE.Object3D();
+    const colorCyan = new THREE.Color(0x00ffff);
+    const colorOrange = new THREE.Color(0xff6600);
+    const colorWhite = new THREE.Color(0xffffff);
+    
+    for (let i = 0; i < this.minorTrafficNodes.length; i++) {
+      const node = this.minorTrafficNodes[i];
+      node.progress += node.speed;
+      if (node.progress > 1) {
+        node.progress = 0;
+      }
+      
+      const pos = new THREE.Vector3().lerpVectors(node.start, node.end, node.progress);
+      dummy.position.copy(pos);
+      dummy.lookAt(node.end);
+      dummy.updateMatrix();
+      
+      this.minorTrafficMesh.setMatrixAt(i, dummy.matrix);
+      
+      // Keep colors stable but occasionally flicker a white packet for data activity look
+      const baseCol = node.colorType === 'orange' ? colorOrange : colorCyan;
+      const col = Math.random() < 0.001 ? colorWhite : baseCol;
+      this.minorTrafficMesh.setColorAt(i, col);
+    }
+    
+    this.minorTrafficMesh.instanceMatrix.needsUpdate = true;
+    if (this.minorTrafficMesh.instanceColor) {
+      this.minorTrafficMesh.instanceColor.needsUpdate = true;
+    }
+  }
+
+  buildSkyHighways() {
+    const skyCurve1 = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-1000, 300, -1000),
+      new THREE.Vector3(0, 400, -500),
+      new THREE.Vector3(1000, 350, -1000),
+      new THREE.Vector3(500, 300, 0),
+      new THREE.Vector3(1000, 450, 1000),
+      new THREE.Vector3(0, 350, 500),
+      new THREE.Vector3(-1000, 400, 1000),
+      new THREE.Vector3(-500, 320, 0),
+    ]);
+    skyCurve1.closed = true;
+    
+    const skyCurve2 = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-800, 250, 800),
+      new THREE.Vector3(800, 300, 800),
+      new THREE.Vector3(800, 270, -800),
+      new THREE.Vector3(-800, 320, -800),
+    ]);
+    skyCurve2.closed = true;
+    
+    const packetGeo = new THREE.BoxGeometry(2, 0.5, 6);
+    this.skyPackets = [];
+    
+    const setupSkyTraffic = (curve, count, colorHex) => {
+      const mat = new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.8 });
+      const mesh = new THREE.InstancedMesh(packetGeo, mat, count);
+      this.heroGroup.add(mesh);
+      
+      const nodes = Array.from({ length: count }, (_, idx) => ({
+        progress: idx / count,
+        speed: 0.001 + Math.random() * 0.0008
+      }));
+      
+      this.skyPackets.push({
+        mesh: mesh,
+        curve: curve,
+        nodes: nodes
+      });
+    };
+    
+    setupSkyTraffic(skyCurve1, 30, 0x00ffff);
+    setupSkyTraffic(skyCurve2, 20, 0xffaa00);
+  }
+
+  updateSkyTraffic() {
+    if (!this.skyPackets) return;
+    
+    const dummy = new THREE.Object3D();
+    
+    this.skyPackets.forEach(highway => {
+      const curve = highway.curve;
+      const nodes = highway.nodes;
+      const mesh = highway.mesh;
+      
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        node.progress += node.speed;
+        if (node.progress > 1) node.progress = 0;
+        
+        const pos = curve.getPointAt(node.progress);
+        const tangent = curve.getTangentAt(node.progress);
+        
+        dummy.position.copy(pos);
+        dummy.lookAt(pos.clone().add(tangent));
+        dummy.updateMatrix();
+        
+        mesh.setMatrixAt(i, dummy.matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+    });
+  }
+
   setBuildProgress(progress) {
     if (this.buildingMaterial) {
       this.buildingMaterial.uniforms.buildProgress.value = progress;
@@ -1115,6 +1987,103 @@ export class MegaCity {
     }
 
     this.updateTraffic();
+
+    // Animate holographic scoreboards rotation
+    if (this.holoScoreboards) {
+      const radius = 130;
+      this.holoScoreboards.forEach(sb => {
+        sb.angle += 0.003;
+        const x = Math.cos(sb.angle) * radius;
+        const z = Math.sin(sb.angle) * radius;
+        sb.mesh.position.set(x, sb.baseY + Math.sin(time * 1.5 + sb.angle) * 2.5, z);
+        
+        const localCenter = new THREE.Vector3(0, 30, 0);
+        sb.mesh.lookAt(localCenter.applyMatrix4(sb.mesh.parent.matrixWorld));
+      });
+    }
+
+    // Animate Battle Disc rotation & floating
+    if (this.combatDisc) {
+      this.combatDisc.rotation.z += 0.05;
+      this.combatDisc.position.y = 15.0 + Math.sin(time * 3.0) * 3.0;
+      
+      const discAngle = time * 1.2;
+      this.combatDisc.position.x = Math.cos(discAngle) * 45;
+      this.combatDisc.position.z = Math.sin(discAngle * 2) * 25;
+    }
+
+    // Update beacons time uniforms
+    if (this.discArenaBeaconMat) this.discArenaBeaconMat.uniforms.time.value = time;
+    if (this.raceComplexBeaconMat) this.raceComplexBeaconMat.uniforms.time.value = time;
+    if (this.holoWallMat) this.holoWallMat.uniforms.time.value = time;
+    if (this.platformShaderMat) this.platformShaderMat.uniforms.time.value = time;
+    if (this.raceTrackMat) this.raceTrackMat.uniforms.time.value = time;
+
+    // Animate Light Cycles along track spline
+    if (this.lightCycles && this.raceCurve) {
+      this.lightCycles.forEach(cycle => {
+        const prevPositions = [];
+        const stepCount = cycle.trails ? cycle.trails.length : 0;
+        
+        for (let t = 1; t <= stepCount; t++) {
+          let trailProg = cycle.progress - (t * 0.015);
+          let normalizedProg = trailProg % 1.0;
+          if (normalizedProg < 0) normalizedProg += 1.0;
+          if (isNaN(normalizedProg)) normalizedProg = 0;
+          
+          try {
+            const pt = this.raceCurve.getPointAt(normalizedProg);
+            if (pt) prevPositions.push(pt);
+          } catch (e) {
+            // Ignore points that fail
+          }
+        }
+
+        cycle.progress += cycle.speed;
+        if (isNaN(cycle.progress)) cycle.progress = 0;
+        let progressWrapped = cycle.progress % 1.0;
+        if (progressWrapped < 0) progressWrapped += 1.0;
+        
+        try {
+          const currentPos = this.raceCurve.getPointAt(progressWrapped);
+          const tangent = this.raceCurve.getTangentAt(progressWrapped);
+          
+          if (currentPos && tangent) {
+            cycle.mesh.position.copy(currentPos);
+            cycle.mesh.lookAt(currentPos.clone().add(tangent));
+          }
+        } catch (e) {
+          // Ignore curve failures
+        }
+        
+        if (cycle.trails) {
+          cycle.trails.forEach((trail, idx) => {
+            const pos = prevPositions[idx];
+            if (pos && trail) {
+              trail.position.copy(pos);
+              // Stand solid-light walls upright on the track surface (height is 6m, offset by 3m)
+              trail.position.y += 3.0;
+              
+              const nextPos = prevPositions[idx + 1];
+              if (nextPos) {
+                try {
+                  const targetLook = nextPos.clone().add(new THREE.Vector3(0, 3.0, 0));
+                  trail.lookAt(targetLook);
+                } catch (e) {
+                  // Ignore lookAt failures
+                }
+              }
+            }
+          });
+        }
+      });
+    }
+
+    // Update minor street traffic
+    this.updateMinorTraffic();
+
+    // Update sky lane traffic
+    this.updateSkyTraffic();
 
     // Cinematic Camera Drift
     // Instead of being perfectly still, the camera constantly drifts like a drone
