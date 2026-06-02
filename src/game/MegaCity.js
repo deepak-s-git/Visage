@@ -180,11 +180,76 @@ export class MegaCity {
     const spireGroup = new THREE.Group();
     
     // Materials
-    const darkMetal = new THREE.MeshStandardMaterial({
-      color: 0x000103, // Obsidian deep dark black
-      roughness: 0.1,
-      metalness: 0.95,
+    const spireShaderMat = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0 },
+        glowColor: { value: new THREE.Color(0x00ffff) },
+        edgeColor: { value: new THREE.Color(0x0088ff) },
+        baseColor: { value: new THREE.Color(0x000103) } // Pure monolithic dark obsidian
+      },
+      vertexShader: `
+        varying vec3 vNormal;
+        varying vec3 vWorldPos;
+        varying vec3 vViewDir;
+        varying vec2 vUv;
+        
+        void main() {
+          vUv = uv;
+          vec4 worldPos = modelMatrix * vec4(position, 1.0);
+          vWorldPos = worldPos.xyz;
+          vNormal = normalize(normalMatrix * normal);
+          vViewDir = normalize(cameraPosition - worldPos.xyz);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float time;
+        uniform vec3 glowColor;
+        uniform vec3 edgeColor;
+        uniform vec3 baseColor;
+        varying vec3 vNormal;
+        varying vec3 vWorldPos;
+        varying vec3 vViewDir;
+        varying vec2 vUv;
+
+        void main() {
+          vec3 normal = normalize(vNormal);
+          vec3 viewDir = normalize(vViewDir);
+          
+          // 1. Thin Fresnel Rim Glow (Elegantly outlines the silhouette edges)
+          float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 5.0);
+          vec3 rimGlow = glowColor * fresnel * 0.45;
+          
+          // 2. Subtle upward-scrolling circuit logic lines
+          float gridX = sin(vWorldPos.x * 0.15) * 0.5 + 0.5;
+          float gridY = sin(vWorldPos.y * 0.12 - time * 3.0) * 0.5 + 0.5;
+          float gridZ = sin(vWorldPos.z * 0.15) * 0.5 + 0.5;
+          
+          float circuitLines = step(0.98, gridX) + step(0.98, gridY) + step(0.98, gridZ);
+          circuitLines = clamp(circuitLines, 0.0, 1.0);
+          vec3 circuitGlow = edgeColor * circuitLines * 0.25;
+          
+          // Combine layers (no dense grids of window ports, keeping it clean and monolithic)
+          vec3 finalColor = baseColor + rimGlow + circuitGlow;
+          
+          // Add specular highlights from key point lights
+          vec3 lightPos1 = vec3(0.0, 290.0, 0.0);
+          vec3 lightDir1 = normalize(lightPos1 - vWorldPos);
+          vec3 halfDir1 = normalize(lightDir1 + viewDir);
+          float spec1 = pow(max(dot(normal, halfDir1), 0.0), 32.0) * 0.5;
+
+          vec3 lightPos2 = vec3(0.0, 450.0, 0.0);
+          vec3 lightDir2 = normalize(lightPos2 - vWorldPos);
+          vec3 halfDir2 = normalize(lightDir2 + viewDir);
+          float spec2 = pow(max(dot(normal, halfDir2), 0.0), 32.0) * 0.5;
+          
+          finalColor += vec3(1.0) * (spec1 + spec2);
+          
+          gl_FragColor = vec4(finalColor, 1.0);
+        }
+      `
     });
+    this.spireMat = spireShaderMat;
     
     const neonLineMat = new THREE.LineBasicMaterial({
       color: 0x00ffff,
@@ -197,7 +262,7 @@ export class MegaCity {
 
     // Helper to add styled parts and their neon outline segments
     const addPart = (geom, pos, rot = null) => {
-      const mesh = new THREE.Mesh(geom, darkMetal);
+      const mesh = new THREE.Mesh(geom, spireShaderMat);
       mesh.position.copy(pos);
       if (rot) {
         mesh.rotation.copy(rot);
@@ -315,77 +380,7 @@ export class MegaCity {
     bcR.position.set(25, 247.5, -30.5);
     spireGroup.add(bcR);
 
-    // --- 5. GLOWING LOGIC CHIPS & ACCENTS ON MONOLITHIC SURFACES (Coloring it up) ---
-    const logicGeo = new THREE.BoxGeometry(4, 4, 1.5);
-    const orangeMat = new THREE.MeshBasicMaterial({ color: 0xff5500 }); // Tron Orange accent
-
-    const addLogicGrid = (xCenter, zPos, isFront) => {
-      for (let y = 150; y <= 350; y += 24) {
-        const pattern = Math.sin(y * 0.05);
-        if (pattern > 0.3) {
-          for (let dx = -10; dx <= 10; dx += 10) {
-            const isOrange = Math.sin(y * 2.0 + dx) > 0.4;
-            const mesh = new THREE.Mesh(logicGeo, isOrange ? orangeMat : glowNeonMat);
-            mesh.position.set(xCenter + dx, y, zPos + (isFront ? 0.8 : -0.8));
-            spireGroup.add(mesh);
-          }
-        } else if (pattern > -0.3) {
-          for (let dx = -5; dx <= 5; dx += 10) {
-            const isOrange = Math.sin(y * 2.0 + dx) > 0.4;
-            const mesh = new THREE.Mesh(logicGeo, isOrange ? orangeMat : glowNeonMat);
-            mesh.position.set(xCenter + dx, y, zPos + (isFront ? 0.8 : -0.8));
-            spireGroup.add(mesh);
-          }
-        } else {
-          const isOrange = Math.sin(y * 2.0) > 0.4;
-          const mesh = new THREE.Mesh(logicGeo, isOrange ? orangeMat : glowNeonMat);
-          mesh.position.set(xCenter, y, zPos + (isFront ? 0.8 : -0.8));
-          spireGroup.add(mesh);
-        }
-      }
-    };
-
-    // Add logic grids on columns (front/back)
-    addLogicGrid(-25, 30, true);
-    addLogicGrid(25, 30, true);
-    addLogicGrid(-25, -30, false);
-    addLogicGrid(25, -30, false);
-
-    // Add horizontal glowing bands on side buttresses
-    const buttressLineGeo = new THREE.BoxGeometry(10, 1.5, 82);
-    for (let i = 1; i <= 5; i++) {
-      const t = i / 6.0;
-      const xLeft = -90 * (1.0 - t) - 180 * t;
-      const xRight = 90 * (1.0 - t) + 180 * t;
-      const y = 135 * (1.0 - t);
-      
-      const meshL = new THREE.Mesh(buttressLineGeo, glowNeonMat);
-      meshL.position.set(xLeft, y, 0);
-      spireGroup.add(meshL);
-
-      const meshR = new THREE.Mesh(buttressLineGeo, glowNeonMat);
-      meshR.position.set(xRight, y, 0);
-      spireGroup.add(meshR);
-    }
-
-    // Add horizontal glowing bands on front/back buttresses
-    const frontButtressLineGeo = new THREE.BoxGeometry(78, 1.5, 10);
-    for (let i = 1; i <= 4; i++) {
-      const t = i / 5.0;
-      const zFront = 30 * (1.0 - t) + 160 * t;
-      const zBack = -30 * (1.0 - t) - 160 * t;
-      const y = 135 * (1.0 - t);
-      
-      const meshF = new THREE.Mesh(frontButtressLineGeo, glowNeonMat);
-      meshF.position.set(0, y, zFront);
-      spireGroup.add(meshF);
-
-      const meshB = new THREE.Mesh(frontButtressLineGeo, glowNeonMat);
-      meshB.position.set(0, y, zBack);
-      spireGroup.add(meshB);
-    }
-
-    // --- 6. GLOWING STRUCTURAL POWER NODES ---
+    // --- 5. GLOWING STRUCTURAL POWER NODES ---
     const nodeGeo = new THREE.BoxGeometry(8, 8, 8);
     const addPowerNode = (x, y, z) => {
       const mesh = new THREE.Mesh(nodeGeo, glowNeonMat);
@@ -403,7 +398,7 @@ export class MegaCity {
     addPowerNode(-32.5, 450, 0);
     addPowerNode(32.5, 450, 0);
 
-    // --- 7. GLOWING ENERGY SLIT (Multi-layer white-hot core & cyan glow) ---
+    // --- 6. GLOWING ENERGY SLIT (Multi-layer white-hot core & cyan glow) ---
     const innerSlitMat = new THREE.MeshBasicMaterial({ color: 0xffffff }); // White-hot core
     const outerSlitMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.8 }); // Cyan outer glow
     
@@ -417,7 +412,7 @@ export class MegaCity {
     this.energyCoreMesh.position.set(0, 135 + 315/2, 0);
     spireGroup.add(this.energyCoreMesh);
 
-    // --- 8. CELESTIAL SKY BEAM (ShaderMaterial for minimal, upward pulsating beam) ---
+    // --- 7. CELESTIAL SKY BEAM (ShaderMaterial for minimal, upward pulsating beam) ---
     const beamShaderMat = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
@@ -463,7 +458,7 @@ export class MegaCity {
     skyBeam2.rotation.y = Math.PI / 2;
     spireGroup.add(skyBeam2);
 
-    // --- 9. POWERFUL ACCENT POINT LIGHTS ---
+    // --- 8. POWERFUL ACCENT POINT LIGHTS ---
     const cavityLight = new THREE.PointLight(0x00ffff, 120000, 800);
     cavityLight.position.set(0, 290, 0);
     spireGroup.add(cavityLight);
@@ -1113,6 +1108,7 @@ export class MegaCity {
 
     // Animate Tron Spire elements
     if (this.skyBeamMat) this.skyBeamMat.uniforms.time.value = time;
+    if (this.spireMat) this.spireMat.uniforms.time.value = time;
     if (this.energyCoreMesh) {
       const pulse = 1.0 + 0.12 * Math.sin(time * 5.0);
       this.energyCoreMesh.scale.set(pulse, 1.0, pulse);
