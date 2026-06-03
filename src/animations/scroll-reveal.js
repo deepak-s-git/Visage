@@ -608,6 +608,41 @@ export function initScrollReveal() {
 }
 
 /** The Final Transition: Blackhole Collapse to Interface */
+/**
+ * Cinematic text decrypt/scramble reveal effect
+ */
+function decryptText(element, originalText) {
+  if (!element) return;
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*+<>?/[]{}';
+  let iterations = 0;
+  const maxIterations = 15;
+  const charsPerStep = Math.max(1, originalText.length / maxIterations);
+  
+  if (element.dataset.intervalId) clearInterval(element.dataset.intervalId);
+  
+  element.textContent = originalText.split('').map(char => {
+    if (char === ' ') return ' ';
+    if (char === '.' || char === ',') return char;
+    return chars[Math.floor(Math.random() * chars.length)];
+  }).join('');
+  
+  element.dataset.intervalId = setInterval(() => {
+    element.textContent = originalText.split('').map((char, index) => {
+      if (index < iterations) return char;
+      if (char === ' ' || char === '.' || char === ',') return char;
+      return chars[Math.floor(Math.random() * chars.length)];
+    }).join('');
+    
+    iterations += charsPerStep;
+    
+    if (iterations >= originalText.length) {
+      clearInterval(element.dataset.intervalId);
+      element.textContent = originalText;
+    }
+  }, 35);
+}
+
+/** The Final Transition: Blackhole Collapse to Interface */
 function triggerBlackholeCollapse() {
   // Prevent double clicking
   const btn = document.getElementById('collapse-btn');
@@ -642,34 +677,157 @@ function triggerBlackholeCollapse() {
     }
   }, 0);
 
-  // Bring in the main interface after the cinematic delay
-  tl.fromTo('.main-interface', {
-    opacity: 0,
-    background: 'rgba(1, 1, 2, 0)',
-    backdropFilter: 'blur(0px)',
-    webkitBackdropFilter: 'blur(0px)',
-    pointerEvents: 'none'
-  }, {
+  // Set initial states for components of the main interface to enable build animation
+  tl.set('.main-interface', { display: 'block', opacity: 0 });
+  tl.set('.shell', { opacity: 1 }); // Ensure shell is visible inside wrapper
+  
+  // Header initial states
+  tl.set('header', { opacity: 0, y: -40 });
+  tl.set(['.hd-wordmark', '.hd-subtitle', '.hd-install', '#live-clock'], { opacity: 0 });
+  tl.set('.status-pill', { opacity: 0, scale: 0.7 });
+  
+  // Sidebars and center column initial states
+  tl.set('.sidebar-left', { opacity: 0, x: -60 });
+  tl.set('.sidebar-left .section-label', { opacity: 0 });
+  tl.set('.catalogue', { opacity: 0, scale: 0.96 });
+  tl.set('.catalogue-item', { opacity: 0, x: -25 });
+  tl.set('.spotify-panel > *', { opacity: 0, y: 20 });
+  
+  tl.set('.center-col', { opacity: 0, y: 60, scale: 0.97 });
+  tl.set('.cam-wrap', { opacity: 0, scale: 0.95, borderColor: 'rgba(255, 255, 255, 0.01)' });
+  tl.set('.reticle', { scale: 0, opacity: 0 });
+  tl.set(['.cam-label', '.no-cam-icon', '.no-cam-text', '.cam-enable-btn'], { opacity: 0 });
+  tl.set(['.detect-btn', '.debug-toggle-btn'], { opacity: 0, y: 25 });
+  
+  tl.set('.sidebar-right', { opacity: 0, x: 60 });
+  tl.set('.sidebar-right > *', { opacity: 0, y: 20 });
+  tl.set(['#fill-conf', '#fill-valence-pos', '#fill-valence-neg', '#fill-arousal-pos', '#fill-arousal-neg'], { width: '0%' });
+  
+  tl.set('footer', { opacity: 0, y: 20 });
+  tl.set('footer .foot-text', { opacity: 0 });
+
+  // Phase 1: Main interface container fades in
+  tl.to('.main-interface', {
     opacity: 1,
     background: 'rgba(1, 1, 2, 0.5)',
     backdropFilter: 'blur(20px)',
     webkitBackdropFilter: 'blur(20px)',
     pointerEvents: 'auto',
-    duration: 2,
+    duration: 2.0,
     ease: 'power2.out'
-  }, 2.0); // Wait 2 seconds for blackhole effect
+  }, 2.0); // Starts at 2.0s after the blackhole effect finishes
 
-  tl.to('.shell main > *', {
+  // Phase 2: Header boots and slides down
+  tl.to('header', {
+    opacity: 1,
     y: 0,
-    scale: 1,
     duration: 1.2,
-    ease: 'power3.out'
-  }, 2.5);
+    ease: 'power4.out'
+  }, 2.2);
 
-  tl.to('.shell header', {
-    y: 0,
-    duration: 0.8
-  }, 2.5);
+  // Decrypt header titles
+  tl.to('.hd-wordmark', { opacity: 1, duration: 0.1 }, 2.5);
+  tl.call(() => decryptText(document.querySelector('.hd-wordmark'), 'Visage.obj'), null, 2.5);
+  
+  tl.to('.hd-subtitle', { opacity: 1, duration: 0.1 }, 2.6);
+  tl.call(() => decryptText(document.querySelector('.hd-subtitle'), 'Affective Computing Module'), null, 2.6);
+
+  tl.to('.hd-install', { opacity: 1, duration: 0.1 }, 2.8);
+  tl.call(() => decryptText(document.querySelector('.hd-install'), 'Installation 03'), null, 2.8);
+
+  tl.to('.status-pill', { opacity: 1, scale: 1, duration: 0.8, ease: 'back.out(1.5)' }, 3.0);
+  tl.to('#live-clock', { opacity: 1, duration: 0.8 }, 3.2);
+
+  // Phase 3: Left Sidebar enters and builds
+  tl.to('.sidebar-left', { opacity: 1, x: 0, duration: 1.2, ease: 'power4.out' }, 2.8);
+  
+  tl.to('.sidebar-left .section-label:first-of-type', { opacity: 1, duration: 0.1 }, 3.0);
+  tl.call(() => {
+    const labels = document.querySelectorAll('.sidebar-left .section-label');
+    if (labels && labels[0]) decryptText(labels[0], 'Process Catalogue');
+  }, null, 3.0);
+  
+  tl.to('.catalogue', { opacity: 1, scale: 1, duration: 0.8, ease: 'power3.out' }, 3.1);
+  tl.to('.catalogue-item', { 
+    opacity: 1, 
+    x: 0, 
+    duration: 0.6, 
+    stagger: 0.1, 
+    ease: 'power3.out' 
+  }, 3.2);
+  
+  // Spotify panel builds
+  tl.to('.spotify-panel > *', { opacity: 1, y: 0, duration: 0.8, stagger: 0.1, ease: 'power3.out' }, 3.5);
+  tl.call(() => {
+    const labels = document.querySelectorAll('.sidebar-left .section-label');
+    if (labels && labels[1]) decryptText(labels[1], 'Signal Source');
+  }, null, 3.6);
+
+  // Phase 4: Center Column System Build
+  tl.to('.center-col', { opacity: 1, y: 0, scale: 1, duration: 1.4, ease: 'power4.out' }, 3.2);
+  tl.to('.cam-wrap', { 
+    opacity: 1, 
+    scale: 1, 
+    borderColor: 'var(--glass-border)', 
+    duration: 1.2, 
+    ease: 'power3.out' 
+  }, 3.3);
+  
+  // Slide corner reticles outward
+  tl.to('.reticle', { scale: 1, opacity: 1, duration: 0.8, ease: 'back.out(1.8)' }, 3.6);
+  
+  // Flash scan line
+  tl.call(() => {
+    const scanLine = document.getElementById('scan-line');
+    if (scanLine) scanLine.classList.add('active');
+  }, null, 3.8);
+
+  tl.to(['.cam-label', '.no-cam-icon', '.no-cam-text', '.cam-enable-btn'], { 
+    opacity: 1, 
+    duration: 0.8, 
+    stagger: 0.1 
+  }, 3.8);
+
+  tl.to(['.detect-btn', '.debug-toggle-btn'], { opacity: 1, y: 0, duration: 0.8, stagger: 0.15, ease: 'power3.out' }, 4.0);
+
+  // Phase 5: Right Sidebar and Calibration Diagnostics
+  tl.to('.sidebar-right', { opacity: 1, x: 0, duration: 1.2, ease: 'power4.out' }, 3.5);
+  
+  tl.to('.resonance-label-row .section-label', { opacity: 1, duration: 0.1 }, 3.7);
+  tl.call(() => decryptText(document.querySelector('.resonance-label-row .section-label'), 'Detected Emotion'), null, 3.7);
+  
+  tl.to('.sidebar-right > *', { opacity: 1, y: 0, duration: 0.8, stagger: 0.12, ease: 'power3.out' }, 3.8);
+
+  // Sensory calibration sweep: width goes from 0% -> 100% -> 0%
+  tl.fromTo(['#fill-conf', '#fill-valence-pos', '#fill-valence-neg', '#fill-arousal-pos', '#fill-arousal-neg'], 
+    { width: '0%' }, 
+    { width: '100%', duration: 1.0, ease: 'power3.inOut', stagger: 0.1 }, 
+    4.1
+  );
+  tl.to(['#fill-conf', '#fill-valence-pos', '#fill-valence-neg', '#fill-arousal-pos', '#fill-arousal-neg'], 
+    { width: '0%', duration: 0.8, ease: 'power3.inOut' }, 
+    5.0
+  );
+
+  // Phase 6: Footer and Audio Toggle
+  tl.to('footer', { opacity: 1, y: 0, duration: 0.8 }, 4.5);
+  
+  tl.to('footer .foot-text:first-child', { opacity: 1, duration: 0.1 }, 4.7);
+  tl.call(() => {
+    const footTexts = document.querySelectorAll('footer .foot-text');
+    if (footTexts && footTexts[0]) decryptText(footTexts[0], 'Data is transient. No records retained.');
+  }, null, 4.7);
+  
+  tl.to('footer .foot-text:last-child', { opacity: 1, duration: 0.1 }, 4.9);
+  tl.call(() => {
+    const footTexts = document.querySelectorAll('footer .foot-text');
+    if (footTexts && footTexts[1]) decryptText(footTexts[1], 'SYS_MEM 1024MB');
+  }, null, 4.9);
+
+  const audioToggle = document.getElementById('audio-toggle');
+  if (audioToggle) {
+    tl.to(audioToggle, { opacity: 1, scale: 1, duration: 0.8, ease: 'back.out(1.5)' }, 4.8);
+  }
 
   // Turn off landing active state for audio
   setTimeout(() => {
