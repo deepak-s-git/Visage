@@ -38,6 +38,7 @@ export function setLandingScene(scene) {
 
 /** Run the cinematic landing intro (typography stagger) */
 export function playLandingIntro() {
+  injectHomeButton();
   const tl = gsap.timeline({ delay: 0.6 });
 
   // Emerge from the blur of the loader (Core and grid solidify from atmosphere)
@@ -90,11 +91,18 @@ export function playLandingIntro() {
     opacity: 1, pointerEvents: 'auto', duration: 0.8, ease: 'power2.out'
   }, 1.5);
 
+  tl.to('#home-button', {
+    opacity: 1, pointerEvents: 'auto', duration: 0.8, ease: 'power2.out'
+  }, 1.5);
+
   return tl;
 }
 
 /** Set up scroll-driven transitions from landing → story journey */
 export function initScrollReveal() {
+  // Inject Home navigation button
+  injectHomeButton();
+
   // Enable scrolling after loading is complete
   document.documentElement.style.overflow = 'auto';
   document.body.style.overflowY = 'auto';
@@ -658,6 +666,109 @@ function decryptText(element, originalText) {
   }, 35);
 }
 
+/**
+ * Transition back to the landing page smoothly
+ */
+function goToHome() {
+  const homeBtn = document.getElementById('home-button');
+  if (homeBtn) homeBtn.style.pointerEvents = 'none';
+
+  // Dispatch global reset event to stop webcam, reset steps, etc.
+  window.dispatchEvent(new CustomEvent('visage-reset'));
+
+  // Reset scroll-reveal global progress states
+  window._landingSectionProgress = 0;
+  window._visageHackProgress = 0;
+  window._corruptionPhase = 0;
+  window._visageTitleScrollProgress = 0;
+
+  // 1. Create temporary black transition overlay
+  const overlay = document.createElement('div');
+  overlay.style.position = 'fixed';
+  overlay.style.inset = 0;
+  overlay.style.background = '#000000';
+  overlay.style.zIndex = 99999;
+  overlay.style.opacity = 0;
+  overlay.style.pointerEvents = 'none';
+  document.body.appendChild(overlay);
+
+  // 2. Fade in overlay (cross-fade to black)
+  gsap.to(overlay, {
+    opacity: 1,
+    duration: 0.8,
+    ease: 'power2.inOut',
+    onComplete: () => {
+      // 3. Reset scroll position instantly
+      window.scrollTo(0, 0);
+      lenis.scrollTo(0, { immediate: true });
+
+      // 4. Reset 3D landing scene
+      if (landingScene && landingScene.resetBlackhole) {
+        landingScene.resetBlackhole();
+      }
+
+      // 5. Restore scroll triggers
+      ScrollTrigger.getAll().forEach(st => st.enable());
+      ScrollTrigger.update(); // Tell ScrollTrigger to evaluate scroll triggers at scroll = 0
+
+      // 6. Reset sections visibility
+      const expContainer = document.querySelector('.experience-scroll-container');
+      if (expContainer) {
+        expContainer.style.display = 'block';
+        gsap.set(expContainer, { opacity: 1, scale: 1 });
+      }
+
+      const mainInterface = document.getElementById('main-interface');
+      if (mainInterface) {
+        mainInterface.style.display = 'none';
+        gsap.set(mainInterface, { opacity: 0 });
+      }
+
+      // Reset megacity elements and other sections
+      gsap.set('.fixed-bg-layer', { opacity: 1 });
+      gsap.set(['#megacity-canvas', '.stadium-content', '.stadium-glow'], { opacity: 1 });
+      
+      // Reset scroll reveal state triggers
+      ScrollTrigger.refresh();
+
+      // Enable scrolling
+      document.documentElement.style.overflow = 'auto';
+      document.body.style.overflowY = 'auto';
+      document.body.style.overflowX = 'hidden';
+      lenis.start();
+
+      // Restore volume states
+      setLandingActive(true);
+      setTrackVolumes(1, 0, 1.0); // Reset WuWa to full, TRON to 0
+
+      // Re-enable click
+      if (homeBtn) homeBtn.style.pointerEvents = 'auto';
+
+      // 7. Fade out overlay
+      gsap.to(overlay, {
+        opacity: 0,
+        duration: 0.8,
+        ease: 'power2.inOut',
+        onComplete: () => overlay.remove()
+      });
+    }
+  });
+}
+
+function injectHomeButton() {
+  if (document.getElementById('home-button')) return;
+  const btn = document.createElement('button');
+  btn.id = 'home-button';
+  btn.className = 'home-button';
+  btn.setAttribute('aria-label', 'Return to landing page');
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+    <polyline points="9 22 9 12 15 12 15 22"/>
+  </svg>`;
+  btn.addEventListener('click', goToHome);
+  document.body.appendChild(btn);
+}
+
 /** The Final Transition: Blackhole Collapse to Interface */
 function triggerBlackholeCollapse() {
   // Prevent double clicking
@@ -698,10 +809,20 @@ function triggerBlackholeCollapse() {
   // Set initial states for components of the main interface to enable build animation
   tl.set('.main-interface', { display: 'block', opacity: 0 });
   tl.set('.shell', { opacity: 1 }); // Ensure shell is visible inside wrapper
+  
   const audioToggle = document.getElementById('audio-toggle');
   if (audioToggle) {
     tl.set(audioToggle, { opacity: 0, scale: 0.7 });
   }
+  const homeBtn = document.getElementById('home-button');
+  if (homeBtn) {
+    tl.set(homeBtn, { opacity: 0, scale: 0.7 });
+  }
+
+  // Dispatch custom collapse veil event when interface starts loading
+  tl.call(() => {
+    window.dispatchEvent(new CustomEvent('visage-collapse-veil'));
+  }, null, 2.0);
   
   // Header initial states
   tl.set('header', { opacity: 0, y: -40 });
@@ -848,6 +969,9 @@ function triggerBlackholeCollapse() {
 
   if (audioToggle) {
     tl.to(audioToggle, { opacity: 1, scale: 1, duration: 0.8, ease: 'back.out(1.5)' }, 4.8);
+  }
+  if (homeBtn) {
+    tl.to(homeBtn, { opacity: 1, scale: 1, duration: 0.8, ease: 'back.out(1.5)' }, 4.8);
   }
 
   // Turn off landing active state for audio
