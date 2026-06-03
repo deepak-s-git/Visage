@@ -19,6 +19,7 @@ const lenis = new Lenis({
   syncTouch: true,
   touchMultiplier: 1.5, 
 });
+lenis.stop(); // Stop immediately on load to prevent scrolling during entry gate/loading
 
 // Synchronize Lenis with GSAP ScrollTrigger perfectly
 lenis.on('scroll', ScrollTrigger.update);
@@ -85,11 +86,21 @@ export function playLandingIntro() {
     opacity: 1, duration: 0.8, ease: 'power2.out'
   }, 1.5);
 
+  tl.to('#audio-toggle', {
+    opacity: 1, pointerEvents: 'auto', duration: 0.8, ease: 'power2.out'
+  }, 1.5);
+
   return tl;
 }
 
 /** Set up scroll-driven transitions from landing → story journey */
 export function initScrollReveal() {
+  // Enable scrolling after loading is complete
+  document.documentElement.style.overflow = 'auto';
+  document.body.style.overflowY = 'auto';
+  document.body.style.overflowX = 'hidden';
+  lenis.start();
+
   // Initialize matrix rain canvas
   matrixRainEffect = initMatrixRain('matrix-rain-canvas');
 
@@ -495,7 +506,9 @@ export function initScrollReveal() {
     if (btnEnter && darkWorld) {
       btnEnter.addEventListener('click', () => {
         // Lock scrolling
+        document.documentElement.style.overflow = 'hidden';
         document.body.style.overflow = 'hidden';
+        lenis.stop();
         
         // HYPER ZOOM TRANSITION into the Master Image
         const transTl = gsap.timeline();
@@ -563,7 +576,10 @@ export function initScrollReveal() {
           
           retTl.call(() => {
             // Unlock scrolling
-            document.body.style.overflow = '';
+            document.documentElement.style.overflow = 'auto';
+            document.body.style.overflowY = 'auto';
+            document.body.style.overflowX = 'hidden';
+            lenis.start();
           });
         });
       }
@@ -660,7 +676,9 @@ function triggerBlackholeCollapse() {
   const tl = gsap.timeline();
 
   // Lock scrolling so the user can't break the cinematic sequence
+  document.documentElement.style.overflow = 'hidden';
   document.body.style.overflow = 'hidden';
+  lenis.stop();
   
   // Disable all active ScrollTriggers to freeze the scroll progress
   ScrollTrigger.getAll().forEach(st => st.disable());
@@ -680,6 +698,10 @@ function triggerBlackholeCollapse() {
   // Set initial states for components of the main interface to enable build animation
   tl.set('.main-interface', { display: 'block', opacity: 0 });
   tl.set('.shell', { opacity: 1 }); // Ensure shell is visible inside wrapper
+  const audioToggle = document.getElementById('audio-toggle');
+  if (audioToggle) {
+    tl.set(audioToggle, { opacity: 0, scale: 0.7 });
+  }
   
   // Header initial states
   tl.set('header', { opacity: 0, y: -40 });
@@ -824,7 +846,6 @@ function triggerBlackholeCollapse() {
     if (footTexts && footTexts[1]) decryptText(footTexts[1], 'SYS_MEM 1024MB');
   }, null, 4.9);
 
-  const audioToggle = document.getElementById('audio-toggle');
   if (audioToggle) {
     tl.to(audioToggle, { opacity: 1, scale: 1, duration: 0.8, ease: 'back.out(1.5)' }, 4.8);
   }
