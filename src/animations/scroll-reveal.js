@@ -11,6 +11,12 @@ import { MegaCity } from '../game/MegaCity.js';
 
 gsap.registerPlugin(ScrollTrigger);
 
+// Force scroll restoration to manual and clear GSAP's cached scroll positions
+if ('scrollRestoration' in history) {
+  history.scrollRestoration = 'manual';
+}
+ScrollTrigger.clearScrollMemory();
+
 // Initialize Lenis for heavy, dense, cinematic scroll inertia
 const lenis = new Lenis({
   lerp: 0.1,            // Lighter, more responsive smoothing (feels natural but cinematic)
@@ -102,6 +108,18 @@ export function playLandingIntro() {
 export function initScrollReveal() {
   // Inject Home navigation button
   injectHomeButton();
+
+  // Force scroll position to top instantly to prevent browser scroll restoration glitches
+  window.scrollTo(0, 0);
+  lenis.scrollTo(0, { immediate: true });
+
+  // Double-safeguard: reset scroll again after browser thread layout is complete
+  requestAnimationFrame(() => {
+    window.scrollTo(0, 0);
+    lenis.scrollTo(0, { immediate: true });
+    // Tell ScrollTrigger to align with the reset position
+    ScrollTrigger.update();
+  });
 
   // Enable scrolling after loading is complete
   document.documentElement.style.overflow = 'auto';
@@ -673,84 +691,27 @@ function goToHome() {
   const homeBtn = document.getElementById('home-button');
   if (homeBtn) homeBtn.style.pointerEvents = 'none';
 
-  // Dispatch global reset event to stop webcam, reset steps, etc.
-  window.dispatchEvent(new CustomEvent('visage-reset'));
-
-  // Reset scroll-reveal global progress states
-  window._landingSectionProgress = 0;
-  window._visageHackProgress = 0;
-  window._corruptionPhase = 0;
-  window._visageTitleScrollProgress = 0;
-
-  // 1. Create temporary black transition overlay
+  // 1. Create temporary black transition overlay (blocking clicks during transition)
   const overlay = document.createElement('div');
   overlay.style.position = 'fixed';
   overlay.style.inset = 0;
   overlay.style.background = '#000000';
-  overlay.style.zIndex = 99999;
+  overlay.style.zIndex = 999999;
   overlay.style.opacity = 0;
-  overlay.style.pointerEvents = 'none';
+  overlay.style.pointerEvents = 'auto';
   document.body.appendChild(overlay);
 
   // 2. Fade in overlay (cross-fade to black)
   gsap.to(overlay, {
     opacity: 1,
-    duration: 0.8,
+    duration: 0.6,
     ease: 'power2.inOut',
     onComplete: () => {
-      // 3. Reset scroll position instantly
-      window.scrollTo(0, 0);
-      lenis.scrollTo(0, { immediate: true });
-
-      // 4. Reset 3D landing scene
-      if (landingScene && landingScene.resetBlackhole) {
-        landingScene.resetBlackhole();
-      }
-
-      // 5. Restore scroll triggers
-      ScrollTrigger.getAll().forEach(st => st.enable());
-      ScrollTrigger.update(); // Tell ScrollTrigger to evaluate scroll triggers at scroll = 0
-
-      // 6. Reset sections visibility
-      const expContainer = document.querySelector('.experience-scroll-container');
-      if (expContainer) {
-        expContainer.style.display = 'block';
-        gsap.set(expContainer, { opacity: 1, scale: 1 });
-      }
-
-      const mainInterface = document.getElementById('main-interface');
-      if (mainInterface) {
-        mainInterface.style.display = 'none';
-        gsap.set(mainInterface, { opacity: 0 });
-      }
-
-      // Reset megacity elements and other sections
-      gsap.set('.fixed-bg-layer', { opacity: 1 });
-      gsap.set(['#megacity-canvas', '.stadium-content', '.stadium-glow'], { opacity: 1 });
+      // Set the skip-loader flag in localStorage so the freshly reloaded page bypasses the 14s boot sequence
+      localStorage.setItem('visage-skip-loader', 'true');
       
-      // Reset scroll reveal state triggers
-      ScrollTrigger.refresh();
-
-      // Enable scrolling
-      document.documentElement.style.overflow = 'auto';
-      document.body.style.overflowY = 'auto';
-      document.body.style.overflowX = 'hidden';
-      lenis.start();
-
-      // Restore volume states
-      setLandingActive(true);
-      setTrackVolumes(1, 0, 1.0); // Reset WuWa to full, TRON to 0
-
-      // Re-enable click
-      if (homeBtn) homeBtn.style.pointerEvents = 'auto';
-
-      // 7. Fade out overlay
-      gsap.to(overlay, {
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.inOut',
-        onComplete: () => overlay.remove()
-      });
+      // Cleanly reload the page to clear WebGL contexts, game loops, audio nodes, and cameras completely
+      window.location.reload();
     }
   });
 }
