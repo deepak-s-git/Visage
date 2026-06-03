@@ -409,7 +409,7 @@ export function initScrollReveal() {
       scrollTrigger: {
         trigger: sb3,
         start: 'top top', // Pin perfectly when the top edge hits the top of the screen
-        end: '+=400%',
+        end: '+=120%', // Shorter pin duration for a quick "little hold"
         scrub: 1.5,
         pin: true,
         pinSpacing: true
@@ -450,14 +450,27 @@ export function initScrollReveal() {
       }
     );
 
-    // 3. Cinematic Fly-Forward Exit
-    // At the very end of the 400% pin, fly the camera forward into the horizon
+    // 3. Cinematic Fly-Forward Exit and Fade Out to Black
+    // Hold static for 0.4s in timeline units.
+    // Then fly camera forward, fade out city canvas, glow, UI content, and background grid/stars.
     sb3Tl.to(stadium.baseCameraPos, {
       z: -2000,
       y: 200,
-      duration: 1,
-      ease: 'power3.in' // Accelerates forward
-    }, '+=3.0'); // Starts near the end of the pin space
+      duration: 1.0,
+      ease: 'power2.in' // Accelerates forward
+    }, 0.4);
+
+    sb3Tl.to(['#megacity-canvas', '.stadium-content', '.stadium-glow'], {
+      opacity: 0,
+      duration: 1.0,
+      ease: 'power2.inOut'
+    }, 0.4);
+
+    sb3Tl.to('.fixed-bg-layer', {
+      opacity: 0,
+      duration: 1.0,
+      ease: 'power2.inOut'
+    }, 0.4);
 
     // Fade out Matrix Rain seamlessly as this section scrolls in, ensuring it scrubs back up!
     gsap.fromTo('.matrix-rain-canvas', 
