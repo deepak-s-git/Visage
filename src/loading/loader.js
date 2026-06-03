@@ -168,6 +168,14 @@ export function runCinematicLoader() {
     const loader = document.getElementById('loading-screen');
     if (!loader) { resolve(); return; }
 
+    // Check if the user navigated to home via the Home button (to bypass the 14s loader)
+    if (localStorage.getItem('visage-skip-loader') === 'true') {
+      localStorage.removeItem('visage-skip-loader');
+      loader.remove();
+      resolve();
+      return;
+    }
+
     initParticleCanvas();
 
     const tl = gsap.timeline({
