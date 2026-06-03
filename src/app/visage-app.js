@@ -467,3 +467,27 @@ window.addEventListener('load', () => {
 
 window.connectSpotify = connectSpotify;
 window.runDetection = runDetection;
+
+/* ── Reset and Veil Collapse Listeners ── */
+window.addEventListener('visage-collapse-veil', () => {
+  if (!camStream) {
+    initCamera();
+  }
+});
+
+window.addEventListener('visage-reset', () => {
+  stopRealtimeAnalysis();
+  if (camStream) {
+    camStream.getTracks().forEach((track) => track.stop());
+    camStream = null;
+  }
+  const video = document.getElementById('webcam');
+  if (video) {
+    video.srcObject = null;
+    video.style.display = 'none';
+  }
+  resetDetectionVisuals();
+  setStep(1);
+  const status = document.getElementById('status-text');
+  if (status) status.textContent = 'Calibrated';
+});
