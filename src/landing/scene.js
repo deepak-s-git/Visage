@@ -771,6 +771,17 @@ export function initLandingScene(canvas) {
     triggerBlackhole() {
       isBlackhole = true;
     },
+    resetBlackhole() {
+      isBlackhole = false;
+      blackholeProgress = 0;
+      scrollProgress = 0;
+      targetCoreScale = 1.0;
+      stars.scale.setScalar(1.0);
+      scene.rotation.set(0, 0, 0);
+      coreUniforms.uValence.value = 0;
+      coreUniforms.uArousal.value = 0;
+      coreUniforms.uMouseIntensity.value = 0;
+    },
     dispose() {
       running = false;
       window.removeEventListener('mousemove', onMouseMove);
