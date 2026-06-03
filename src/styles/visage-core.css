@@ -99,12 +99,14 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
+  overflow: hidden; /* Hide scrollbars during entry gate/loading */
 }
 
 body {
   background: var(--bg-deep);
   min-height: 100vh;
   overflow-x: hidden;
+  overflow-y: hidden; /* Hide scrollbars during entry gate/loading */
 }
 
 /* ── SELECTION ── */
