@@ -619,11 +619,12 @@ async function runDetection() {
         finalizeOnDemandScan();
       }, 2500);
     }
-  } catch (_loadErr) {
+  } catch (err) {
+    console.error('[Visage] AI Model Load failed:', err);
     detecting = false;
     setAnalysisState('awaiting');
     document.getElementById('status-text').textContent = 'Model Load Failed';
-    showCameraStatus('Could not load emotion model. Use local server and retry.', 'Retry', () => runDetection());
+    showCameraStatus('Could not load emotion model: ' + (err.message || 'Internal error'), 'Retry', () => runDetection());
     scan.classList.remove('active');
     analysing.classList.remove('visible');
     return;
@@ -683,6 +684,7 @@ window.addEventListener('load', () => {
 
 window.connectSpotify = connectSpotify;
 window.runDetection = runDetection;
+window.ensureEmotionEngine = ensureEmotionEngine;
 
 /* ── Reset and Veil Collapse Listeners ── */
 window.addEventListener('visage-collapse-veil', () => {
