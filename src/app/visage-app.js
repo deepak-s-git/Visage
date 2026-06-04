@@ -30,6 +30,25 @@ let analysisState = 'awaiting';
 let debugEnabled = false;
 let emotionEngine = null;
 
+/* ── DETECTION MODES STATE ── */
+let detectionMode = 'on-demand'; // 'on-demand' or 'continuous'
+let demandScanTimeout = null;
+let demandScanResults = [];
+let newEmotionCandidate = null;
+let newEmotionSince = 0;
+let currentPlayingEmotion = null;
+
+function resetModesState() {
+  if (demandScanTimeout) {
+    clearTimeout(demandScanTimeout);
+    demandScanTimeout = null;
+  }
+  demandScanResults = [];
+  newEmotionCandidate = null;
+  newEmotionSince = 0;
+  currentPlayingEmotion = null;
+}
+
 /* ── WEBCAM ── */
 function showCameraStatus(message, actionLabel, actionHandler) {
   const noCam = document.getElementById('no-cam');
@@ -230,18 +249,31 @@ function setAnalysisState(nextState) {
 
   const label = document.getElementById('detect-label');
   const status = document.getElementById('status-text');
-  if (nextState === 'awaiting') {
-    label.textContent = 'Detect My Emotion';
-    if (camStream) status.textContent = 'Ready';
-  } else if (nextState === 'analyzing') {
-    label.textContent = detecting ? 'Stop Analysis' : 'Analysing…';
-    status.textContent = 'Processing';
-  } else if (nextState === 'searching') {
-    label.textContent = detecting ? 'Stop Analysis' : 'Analysing…';
-    status.textContent = 'No Face Detected';
-  } else if (nextState === 'detected') {
-    label.textContent = detecting ? 'Stop Analysis' : 'Analyse Again';
-    status.textContent = 'Calibrated';
+  if (!label || !status) return;
+
+  if (detectionMode === 'continuous') {
+    if (nextState === 'awaiting') {
+      label.textContent = 'Start Auto Analysis';
+      if (camStream) status.textContent = 'Ready';
+    } else if (nextState === 'analyzing' || nextState === 'searching' || nextState === 'detected') {
+      label.textContent = 'Stop Auto Analysis';
+      status.textContent = nextState === 'searching' ? 'No Face Detected' : (nextState === 'detected' ? 'Calibrated' : 'Processing');
+    }
+  } else {
+    // on-demand mode
+    if (nextState === 'awaiting') {
+      label.textContent = 'Detect My Emotion';
+      if (camStream) status.textContent = 'Ready';
+    } else if (nextState === 'analyzing') {
+      label.textContent = 'Stop Analysis';
+      status.textContent = 'Scanning Face…';
+    } else if (nextState === 'searching') {
+      label.textContent = 'Stop Analysis';
+      status.textContent = 'No Face Detected';
+    } else if (nextState === 'detected') {
+      label.textContent = 'Analyse Again';
+      status.textContent = 'Analysis Locked';
+    }
   }
   if (debugEnabled) updateDebugPanel({ state: nextState });
 }
@@ -282,14 +314,22 @@ function ensureEmotionEngine() {
       }
     },
     onResult: (result) => {
-      const isNewEmotion = !lastDetectedProfile || lastDetectedProfile.word !== result.word;
-      lastDetectedProfile = result;
+      // If in on-demand mode, we collect frames and update WebGL Neural Core only
+      if (detectionMode === 'on-demand') {
+        demandScanResults.push(result);
+        if (window._visageScene && window._visageScene.setEmotionState) {
+          window._visageScene.setEmotionState({ 
+            valence: result.valence, 
+            arousal: result.arousal 
+          });
+        }
+        return;
+      }
+
+      // Continuous mode
       renderDetectionResult(result);
       setStep(3);
-      
-      if (isNewEmotion) {
-        updateSpotifyTrack(result);
-      }
+      processContinuousResult(result);
       
       // Send real-time emotion telemetry to the WebGL Neural Core
       if (window._visageScene && window._visageScene.setEmotionState) {
@@ -306,10 +346,98 @@ function ensureEmotionEngine() {
   return emotionEngine;
 }
 
+function processContinuousResult(result) {
+  const status = document.getElementById('status-text');
+
+  if (!currentPlayingEmotion) {
+    currentPlayingEmotion = result.word;
+    updateSpotifyTrack(result);
+    if (status) status.textContent = 'Calibrated';
+    return;
+  }
+
+  if (result.word === currentPlayingEmotion) {
+    newEmotionCandidate = null;
+    newEmotionSince = 0;
+    if (status) status.textContent = 'Calibrated';
+    return;
+  }
+
+  if (result.word !== newEmotionCandidate) {
+    newEmotionCandidate = result.word;
+    newEmotionSince = Date.now();
+    if (status) status.textContent = `Confirming ${result.word} (3s)…`;
+  } else {
+    const elapsed = Date.now() - newEmotionSince;
+    const remaining = Math.max(0, 3 - Math.floor(elapsed / 1000));
+    if (elapsed >= 3000) {
+      currentPlayingEmotion = result.word;
+      newEmotionCandidate = null;
+      newEmotionSince = 0;
+      updateSpotifyTrack(result);
+      if (status) status.textContent = 'Calibrated';
+    } else {
+      if (status) status.textContent = `Confirming ${result.word} (${remaining}s)…`;
+    }
+  }
+}
+
+function finalizeOnDemandScan() {
+  if (demandScanResults.length > 0) {
+    // Tally dominant emotions and compute averages
+    const tallies = {};
+    let avgValence = 0;
+    let avgArousal = 0;
+    let avgConfidence = 0;
+    
+    for (const res of demandScanResults) {
+      tallies[res.word] = (tallies[res.word] || 0) + 1;
+      avgValence += res.valence;
+      avgArousal += res.arousal;
+      avgConfidence += res.confidence;
+    }
+    
+    const count = demandScanResults.length;
+    avgValence /= count;
+    avgArousal /= count;
+    avgConfidence = Math.round(avgConfidence / count);
+    
+    let finalWord = 'Neutral';
+    let maxCount = -1;
+    for (const [word, c] of Object.entries(tallies)) {
+      if (c > maxCount) {
+        maxCount = c;
+        finalWord = word;
+      }
+    }
+    
+    const finalProfile = emotionProfiles[finalWord.toLowerCase()] || emotionProfiles.neutral;
+    const finalResult = {
+      ...finalProfile,
+      valence: avgValence,
+      arousal: avgArousal,
+      confidence: avgConfidence
+    };
+
+    renderDetectionResult(finalResult);
+    lastDetectedProfile = finalResult;
+    updateSpotifyTrack(finalResult);
+  }
+
+  stopRealtimeAnalysis();
+  setAnalysisState('detected');
+  setStep(3);
+}
+
 function renderDetectionResult(result) {
   const moodEl = document.getElementById('mood-word');
-  moodEl.textContent = result.word;
-  requestAnimationFrame(() => requestAnimationFrame(() => moodEl.classList.add('revealed')));
+  if (moodEl) {
+    const currentText = moodEl.textContent.trim();
+    if (currentText !== result.word) {
+      moodEl.textContent = result.word;
+      // Triggers character formatting and GSAP fade-in in gsap-controller.js
+    }
+  }
 
   document.getElementById('val-conf').textContent = result.confidence + '%';
   document.getElementById('fill-conf').style.width = result.confidence + '%';
@@ -392,9 +520,12 @@ async function updateSpotifyTrack(profile) {
         // Store the URI so playback can be triggered later
         window._currentSpotifyTrackUri = track.uri;
         window._currentSpotifyTrack = track;
+        
+        // Actually trigger the playback on Spotify active player
+        await window.spotifyAuth.playTrack(track.uri);
       }
     } catch (err) {
-      console.warn('[Visage] Track search failed:', err);
+      console.warn('[Visage] Track search or play failed:', err);
     }
   }
 }
@@ -403,6 +534,7 @@ function stopRealtimeAnalysis() {
   detecting = false;
   if (emotionEngine) emotionEngine.stop();
   setAnalysisState('awaiting');
+  resetModesState();
 }
 
 /* ── DETECTION ── */
@@ -425,8 +557,11 @@ async function runDetection() {
     const engine = ensureEmotionEngine();
     document.getElementById('status-text').textContent = 'Loading AI Model';
     await engine.ensureEmotionModelLoaded();
+    
     detecting = true;
     resetDetectionVisuals();
+    resetModesState();
+    
     setStep(2);
     setAnalysisState('analyzing');
     scan.classList.remove('active');
@@ -434,7 +569,18 @@ async function runDetection() {
     scan.classList.add('active');
     analysing.classList.add('visible');
     if (debugEnabled) updateDebugPanel({ state: 'analyzing' });
+    
+    // Configure frame delay based on the active mode
+    window._visageFrameDelay = (detectionMode === 'continuous') ? 800 : 150;
+    
     await engine.start(video);
+
+    if (detectionMode === 'on-demand') {
+      document.getElementById('status-text').textContent = 'Scanning Face…';
+      demandScanTimeout = setTimeout(() => {
+        finalizeOnDemandScan();
+      }, 2500);
+    }
   } catch (_loadErr) {
     detecting = false;
     setAnalysisState('awaiting');
@@ -450,7 +596,30 @@ setStep(1);
 setAnalysisState('awaiting');
 document.getElementById('debug-toggle-btn').addEventListener('click', toggleDebugPanel);
 
-/* ── Spotify Auth Event Listeners ── */
+function initModeSelector() {
+  const btnDemand = document.getElementById('mode-btn-demand');
+  const btnAuto = document.getElementById('mode-btn-auto');
+  
+  if (!btnDemand || !btnAuto) return;
+  
+  btnDemand.addEventListener('click', () => {
+    if (detectionMode === 'on-demand') return;
+    stopRealtimeAnalysis();
+    detectionMode = 'on-demand';
+    btnDemand.classList.add('active');
+    btnAuto.classList.remove('active');
+    setAnalysisState('awaiting');
+  });
+  
+  btnAuto.addEventListener('click', () => {
+    if (detectionMode === 'continuous') return;
+    stopRealtimeAnalysis();
+    detectionMode = 'continuous';
+    btnAuto.classList.add('active');
+    btnDemand.classList.remove('active');
+    setAnalysisState('awaiting');
+  });
+}
 
 // When OAuth popup completes successfully
 window.addEventListener('spotify-authenticated', async () => {
@@ -466,6 +635,7 @@ window.addEventListener('spotify-auth-error', () => {
 
 // Auto-reconnect on page load if token exists from a previous session
 window.addEventListener('load', () => {
+  initModeSelector();
   setTimeout(() => {
     if (window.spotifyAuth && window.spotifyAuth.isAuthenticated()) {
       handleSpotifyConnected();
