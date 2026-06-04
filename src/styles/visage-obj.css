@@ -960,6 +960,9 @@ footer {
   .mood-word {
     font-size: clamp(28px, 5vw, 40px);
   }
+
+  .sidebar-left { margin-top: 0; }
+  .sidebar-right { margin-top: 0; }
 }
 
 @media (max-width: 600px) {
@@ -989,4 +992,8 @@ footer {
   #live-clock {
     font-size: 14px;
   }
+
+  main { padding: 20px 0 40px; }
+  footer { padding: var(--space-sm) 0; }
+  header { padding: var(--space-sm) var(--space-md); }
 }
