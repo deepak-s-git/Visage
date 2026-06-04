@@ -224,13 +224,24 @@ function formatDebugNumber(value) {
 function updateDebugPanel(payload = {}) {
   const state = payload.state || analysisState;
   document.getElementById('dbg-state').textContent = state;
-  document.getElementById('dbg-brightness').textContent = formatDebugNumber(payload.happy ?? 0);
-  document.getElementById('dbg-contrast').textContent = formatDebugNumber(payload.neutral ?? 0);
-  document.getElementById('dbg-motion').textContent = formatDebugNumber(payload.tension ?? 0);
-  document.getElementById('dbg-valence').textContent = formatDebugNumber(payload.valence ?? 0);
-  document.getElementById('dbg-arousal').textContent = formatDebugNumber(payload.arousal ?? 0);
-  const confidence = Number.isFinite(payload.confidence) ? payload.confidence : 0;
-  document.getElementById('dbg-confidence').textContent = Math.round(confidence) + '%';
+  if (payload.happy !== undefined) {
+    document.getElementById('dbg-brightness').textContent = formatDebugNumber(payload.happy);
+  }
+  if (payload.neutral !== undefined) {
+    document.getElementById('dbg-contrast').textContent = formatDebugNumber(payload.neutral);
+  }
+  if (payload.tension !== undefined) {
+    document.getElementById('dbg-motion').textContent = formatDebugNumber(payload.tension);
+  }
+  if (payload.valence !== undefined) {
+    document.getElementById('dbg-valence').textContent = formatDebugNumber(payload.valence);
+  }
+  if (payload.arousal !== undefined) {
+    document.getElementById('dbg-arousal').textContent = formatDebugNumber(payload.arousal);
+  }
+  if (payload.confidence !== undefined) {
+    document.getElementById('dbg-confidence').textContent = Math.round(payload.confidence) + '%';
+  }
 }
 
 function toggleDebugPanel() {
@@ -389,18 +400,29 @@ function finalizeOnDemandScan() {
     let avgValence = 0;
     let avgArousal = 0;
     let avgConfidence = 0;
+    let avgHappy = 0;
+    let avgNeutral = 0;
+    let avgTension = 0;
     
     for (const res of demandScanResults) {
       tallies[res.word] = (tallies[res.word] || 0) + 1;
       avgValence += res.valence;
       avgArousal += res.arousal;
       avgConfidence += res.confidence;
+      if (res.debug) {
+        avgHappy += res.debug.happy ?? 0;
+        avgNeutral += res.debug.neutral ?? 0;
+        avgTension += res.debug.tension ?? 0;
+      }
     }
     
     const count = demandScanResults.length;
     avgValence /= count;
     avgArousal /= count;
     avgConfidence = Math.round(avgConfidence / count);
+    avgHappy /= count;
+    avgNeutral /= count;
+    avgTension /= count;
     
     let finalWord = 'Neutral';
     let maxCount = -1;
@@ -416,12 +438,28 @@ function finalizeOnDemandScan() {
       ...finalProfile,
       valence: avgValence,
       arousal: avgArousal,
-      confidence: avgConfidence
+      confidence: avgConfidence,
+      debug: {
+        happy: avgHappy,
+        neutral: avgNeutral,
+        tension: avgTension
+      }
     };
 
     renderDetectionResult(finalResult);
     lastDetectedProfile = finalResult;
     updateSpotifyTrack(finalResult);
+
+    // Explicitly update the debug panel with the final locked values!
+    updateDebugPanel({
+      state: 'detected',
+      happy: avgHappy,
+      neutral: avgNeutral,
+      tension: avgTension,
+      valence: avgValence,
+      arousal: avgArousal,
+      confidence: avgConfidence
+    });
   }
 
   stopRealtimeAnalysis();
