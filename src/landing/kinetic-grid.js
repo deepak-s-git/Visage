@@ -25,8 +25,8 @@ export function initKineticGrid(canvasId) {
   function resize() {
     width = window.innerWidth;
     height = window.innerHeight;
-    // Retina support for crisp lines
-    const dpr = window.devicePixelRatio || 1;
+    // Retina support for crisp lines, capped to 1.35 for performance
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.35);
     canvas.width = width * dpr;
     canvas.height = height * dpr;
     ctx.scale(dpr, dpr);
