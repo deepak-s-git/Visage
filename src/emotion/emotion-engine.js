@@ -51,16 +51,20 @@ function blendshapesToEmotions(categories) {
     (bs.jawOpen || 0) * 0.35 +
     avg(bs.browOuterUpLeft, bs.browOuterUpRight) * 0.30;
 
-  const disgusted =
-    avg(bs.noseSneerLeft, bs.noseSneerRight) * 0.55 +
-    (bs.mouthShrugUpper || 0) * 0.25 +
-    avg(bs.mouthUpperUpLeft, bs.mouthUpperUpRight) * 0.20;
+  const disgustedRaw =
+    avg(bs.noseSneerLeft, bs.noseSneerRight) * 0.50 +
+    (bs.mouthShrugUpper || 0) * 0.20 +
+    avg(bs.mouthUpperUpLeft, bs.mouthUpperUpRight) * 0.20 +
+    avg(bs.browDownLeft, bs.browDownRight) * 0.10;
+  const disgusted = clamp(disgustedRaw * 1.6, 0, 1); // 1.6x sensitivity boost
 
-  const fearful =
+  const fearfulRaw =
     (bs.browInnerUp || 0) * 0.25 +
-    avg(bs.eyeWideLeft, bs.eyeWideRight) * 0.35 +
+    avg(bs.eyeWideLeft, bs.eyeWideRight) * 0.30 +
     avg(bs.mouthStretchLeft, bs.mouthStretchRight) * 0.25 +
-    (bs.jawOpen || 0) * 0.15;
+    avg(bs.browOuterUpLeft, bs.browOuterUpRight) * 0.10 +
+    (bs.jawOpen || 0) * 0.10;
+  const fearful = clamp(fearfulRaw * 1.6, 0, 1); // 1.6x sensitivity boost
 
   // Neutral is inversely proportional to how expressive the face is
   const peak = Math.max(happy, sad, angry, surprised, disgusted, fearful);
