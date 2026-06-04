@@ -682,6 +682,58 @@ main {
   color: var(--text-primary);
 }
 
+/* ── Analysis Mode Selector ── */
+.mode-selector {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: var(--space-md) 0;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+}
+
+.mode-label {
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.15em;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  margin-left: var(--space-sm);
+}
+
+.mode-toggle-group {
+  display: flex;
+  gap: 4px;
+}
+
+.mode-btn {
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-family: var(--sans);
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+.mode-btn:hover {
+  color: var(--text-primary);
+}
+
+.mode-btn.active {
+  color: var(--bg-deep);
+  background: var(--text-primary);
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+}
+
 /* ── Detect Button ── */
 .detect-btn {
   width: 100%;
@@ -806,13 +858,13 @@ main {
 .mood-word {
   font-family: var(--serif);
   font-style: italic;
-  font-size: clamp(32px, 4vw, 56px);
+  font-size: clamp(24px, 3.2vw, 42px);
   font-weight: 400;
   color: var(--text-primary);
   line-height: 1.1;
   margin: var(--space-md) 0 var(--space-xl);
   overflow: hidden;
-  word-break: break-word;
+  white-space: nowrap;
   text-shadow: 0 0 40px rgba(255, 255, 255, 0.15);
 }
 
