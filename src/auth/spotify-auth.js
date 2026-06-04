@@ -241,8 +241,11 @@ async function playTrack(trackUri) {
 /* ── Listen for OAuth Callback from Popup ── */
 
 window.addEventListener('message', async (event) => {
-  // Only accept messages from our own origin
-  if (event.origin !== window.location.origin) return;
+  // Allow messages from our own origin or loopback equivalents (localhost and 127.0.0.1)
+  const isAllowedOrigin = event.origin === window.location.origin || 
+                          (event.origin.includes('127.0.0.1') && window.location.origin.includes('localhost')) ||
+                          (event.origin.includes('localhost') && window.location.origin.includes('127.0.0.1'));
+  if (!isAllowedOrigin) return;
 
   if (event.data?.type === 'spotify-callback' && event.data.code) {
     try {
