@@ -22,12 +22,15 @@ export function animateMoodWord(text) {
   );
 }
 
-/** Set up MutationObserver on mood word for auto-animation */
 export function initMoodWordObserver() {
   const el = document.getElementById('mood-word');
   if (!el) return;
 
   const observer = new MutationObserver(() => {
+    // If the mood word has already been formatted into individual char spans,
+    // ignore this mutation to prevent a recursive infinite loop.
+    if (el.querySelector('.char')) return;
+
     const text = el.textContent.trim();
     if (text && text !== '—') {
       animateMoodWord(text);
