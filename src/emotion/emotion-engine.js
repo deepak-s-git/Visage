@@ -229,10 +229,12 @@ function createEmotionEngine({ emotionProfiles, onState, onResult, onDebug }) {
       return;
     }
 
-    // ~7 fps — prevents page unresponsive when running alongside 3D scene
+    // Prevents page unresponsive when running alongside 3D scene.
+    // Dynamic delay allows slow rate in auto mode (e.g. 800ms) and fast rate in scanning mode (e.g. 150ms).
+    const frameDelay = typeof window._visageFrameDelay === 'number' ? window._visageFrameDelay : 150;
     loopHandle = window.setTimeout(() => {
       requestAnimationFrame(() => processFrame(video));
-    }, 150);
+    }, frameDelay);
   }
 
   /* ── Public API ── */
