@@ -282,10 +282,14 @@ function ensureEmotionEngine() {
       }
     },
     onResult: (result) => {
+      const isNewEmotion = !lastDetectedProfile || lastDetectedProfile.word !== result.word;
       lastDetectedProfile = result;
       renderDetectionResult(result);
       setStep(3);
-      updateSpotifyTrack(result);
+      
+      if (isNewEmotion) {
+        updateSpotifyTrack(result);
+      }
       
       // Send real-time emotion telemetry to the WebGL Neural Core
       if (window._visageScene && window._visageScene.setEmotionState) {
