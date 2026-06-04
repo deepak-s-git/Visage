@@ -181,9 +181,13 @@ async function initCamera() {
   }
 }
 
-// Auto-start on load
+// Auto-start on load ONLY if dev/interface mode is active
 window.addEventListener('load', () => {
-  setTimeout(initCamera, 400);
+  const urlParams = new URLSearchParams(window.location.search);
+  const isDevMode = urlParams.has('dev') || urlParams.has('interface') || localStorage.getItem('visage-dev-interface') === 'true';
+  if (isDevMode) {
+    setTimeout(initCamera, 400);
+  }
 });
 
 /* ── CATALOGUE STEP ── */
