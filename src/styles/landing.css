@@ -1304,6 +1304,7 @@
   opacity: 0;
   pointer-events: none;
   overflow: hidden !important;
+  display: none; /* Hidden by default to prevent layout flashes or scroll restoration glitches */
 }
 
 .main-interface .shell {
