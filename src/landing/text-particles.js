@@ -19,39 +19,35 @@ export function initTextParticles(containerSelector) {
   let particles = [];
   let mouse = { x: -1000, y: -1000, radius: 100, hover: false };
   let running = true;
-  let dpr = window.devicePixelRatio || 1;
+  let dpr = Math.min(window.devicePixelRatio || 1, 1.35); // Cap to 1.35 for performance
   const sampleStep = 1; // 1px for high fidelity (no minecraft blocks)
 
-  const originalTexts = [];
+  const textNodes = [];
   
-  function extractAndHideText(root) {
-    const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
-    let n;
-    const nodes = [];
-    while(n = walk.nextNode()) {
-      if (n.textContent.trim().length > 0 && n.parentElement !== canvas && n.parentElement.closest('.landing-title')) {
-        nodes.push({
-          node: n,
-          parent: n.parentElement,
-          originalColor: window.getComputedStyle(n.parentElement).color,
-          originalTextShadow: window.getComputedStyle(n.parentElement).textShadow
-        });
-      }
+  // Extract all relevant text nodes once at startup
+  const walk = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
+  let n;
+  while (n = walk.nextNode()) {
+    if (n.textContent.trim().length > 0 && n.parentElement !== canvas && n.parentElement.closest('.landing-title')) {
+      textNodes.push({
+        node: n,
+        parent: n.parentElement,
+        originalColor: window.getComputedStyle(n.parentElement).color,
+        originalTextShadow: window.getComputedStyle(n.parentElement).textShadow
+      });
     }
-    
-    // Hide them but keep layout
-    nodes.forEach(item => {
-      item.parent.style.color = 'transparent';
-      item.parent.style.textShadow = 'none';
-      originalTexts.push(item);
-    });
-    
-    return nodes;
   }
+
+  // Hide them immediately but keep their layout
+  textNodes.forEach(item => {
+    item.parent.style.color = 'transparent';
+    item.parent.style.textShadow = 'none';
+  });
 
   function init() {
     width = section.offsetWidth;
     height = section.offsetHeight;
+    dpr = Math.min(window.devicePixelRatio || 1, 1.35); // Recalculate capped DPR on resize/movement
     canvas.width = width * dpr;
     canvas.height = height * dpr;
     canvas.style.width = width + 'px';
@@ -65,15 +61,9 @@ export function initTextParticles(containerSelector) {
     offCtx.scale(dpr, dpr);
     offCtx.textBaseline = 'top';
 
-    // Temporarily unhide to get accurate computed styles
-    originalTexts.forEach(item => {
-      item.parent.style.color = item.originalColor;
-    });
-
-    const nodes = extractAndHideText(container);
     const sectionRect = section.getBoundingClientRect();
 
-    nodes.forEach(item => {
+    textNodes.forEach(item => {
       const range = document.createRange();
       range.selectNodeContents(item.node);
       const rect = range.getBoundingClientRect();
@@ -90,7 +80,7 @@ export function initTextParticles(containerSelector) {
       
       offCtx.textAlign = 'left';
       
-      // Calculate absolute position relative to the section!
+      // Calculate absolute position relative to the section
       const x = rect.left - sectionRect.left;
       const y = rect.top - sectionRect.top;
       
@@ -108,7 +98,8 @@ export function initTextParticles(containerSelector) {
     // Create particles using 1px step for perfect text quality
     for (let y = 0; y < offCanvas.height; y += sampleStep * dpr) {
       for (let x = 0; x < offCanvas.width; x += sampleStep * dpr) {
-        const i = (y * offCanvas.width + x) * 4;
+        const i = (Math.floor(y) * offCanvas.width + Math.floor(x)) * 4;
+        if (i >= imgData.length) continue;
         const alpha = imgData[i + 3];
         if (alpha > 30) {
           // Randomize Z multiplier so some particles fly closer/faster
@@ -149,8 +140,14 @@ export function initTextParticles(containerSelector) {
   window.addEventListener('mousemove', onMouseMove);
   document.body.addEventListener('mouseleave', onMouseLeave);
 
-  // Small delay to ensure layout is fully computed
-  setTimeout(init, 200);
+  // Wait for Google Fonts to finish loading before laying out particles
+  if (document.fonts) {
+    document.fonts.ready.then(() => {
+      setTimeout(init, 250);
+    });
+  } else {
+    setTimeout(init, 250);
+  }
 
   function animate() {
     if (!running) return;
@@ -251,7 +248,7 @@ export function initTextParticles(containerSelector) {
       window.removeEventListener('mousemove', onMouseMove);
       document.body.removeEventListener('mouseleave', onMouseLeave);
       canvas.remove();
-      originalTexts.forEach(item => {
+      textNodes.forEach(item => {
         item.parent.style.color = item.originalColor;
         item.parent.style.textShadow = item.originalTextShadow;
       });
