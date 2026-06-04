@@ -443,15 +443,8 @@ header .clock-wrap {
 /* ── MOOD WORD CHARACTER ANIMATION ── */
 .mood-word .char {
   display: inline-block;
-  transform: translateY(100%);
   opacity: 0;
-  transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1),
-    opacity 0.4s ease;
-}
-
-.mood-word.revealed .char {
-  transform: translateY(0);
-  opacity: 1;
+  will-change: transform, opacity;
 }
 
 /* ── STATUS PILL STATES ── */
