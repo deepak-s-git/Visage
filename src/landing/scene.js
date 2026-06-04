@@ -262,7 +262,7 @@ export function initLandingScene(canvas) {
   const renderer = new THREE.WebGLRenderer({
     canvas, antialias: true, alpha: false, powerPreference: "high-performance"
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.35));
   renderer.setSize(canvas.clientWidth, canvas.clientHeight);
 
   /* ── Neural Core Material (Fluid Shader) ── */
