@@ -97,8 +97,8 @@ export function initKineticGrid(canvasId) {
     mouse.vx *= 0.9;
     mouse.vy *= 0.9;
 
-    // Intensity increases as user scrolls deeper into the experience
-    const intensity = 1.0 + (scrollProgress * 2.5);
+    // Uniform intensity across all sections (exactly like the landing page)
+    const intensity = 1.0;
 
     // Update Physics
     for (let i = 0; i < points.length; i++) {
@@ -122,12 +122,9 @@ export function initKineticGrid(canvasId) {
         p.vy += pushY * 0.1;
       }
 
-      // Add ambient wave deformation
-      const waveX = Math.sin(time * 2.0 + p.indexY * 0.2) * 5 * intensity;
-      const waveY = Math.cos(time * 1.5 + p.indexX * 0.2) * 5 * intensity;
-
-      const targetX = p.ox + waveX;
-      const targetY = p.oy + waveY;
+      // No ambient wave deformation - grid stays perfectly still unless hovered
+      const targetX = p.ox;
+      const targetY = p.oy;
 
       // Spring back
       p.vx += (targetX - p.x) * spring;
