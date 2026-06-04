@@ -574,23 +574,6 @@
           <button class="detect-btn" id="detect-btn" onclick="runDetection()">
             <span id="detect-label">Detect My Emotion</span>
           </button>
-          <button class="debug-toggle-btn" id="debug-toggle-btn" type="button">Show Debug Signals</button>
-          <div class="debug-panel" id="debug-panel">
-            <div class="debug-row"><span class="debug-key">State</span><span class="debug-val"
-                id="dbg-state">awaiting</span></div>
-            <div class="debug-row"><span class="debug-key">Happy</span><span class="debug-val"
-                id="dbg-brightness">0.000</span></div>
-            <div class="debug-row"><span class="debug-key">Neutral</span><span class="debug-val"
-                id="dbg-contrast">0.000</span></div>
-            <div class="debug-row"><span class="debug-key">Tension</span><span class="debug-val"
-                id="dbg-motion">0.000</span></div>
-            <div class="debug-row"><span class="debug-key">Valence</span><span class="debug-val"
-                id="dbg-valence">0.000</span></div>
-            <div class="debug-row"><span class="debug-key">Arousal</span><span class="debug-val"
-                id="dbg-arousal">0.000</span></div>
-            <div class="debug-row"><span class="debug-key">Confidence</span><span class="debug-val"
-                id="dbg-confidence">0%</span></div>
-          </div>
         </section>
 
         <!-- RIGHT SIDEBAR -->
@@ -635,6 +618,26 @@
                 <div class="metric-fill bipolar-neg" id="fill-arousal-neg"></div>
               </div>
             </div>
+          </div>
+
+          <!-- DIAGNOSTIC TELEMETRY -->
+          <div class="spotify-divider" style="margin: var(--space-lg) 0 var(--space-sm)"></div>
+          <button class="debug-toggle-btn" id="debug-toggle-btn" type="button">Show Debug Signals</button>
+          <div class="debug-panel" id="debug-panel">
+            <div class="debug-row"><span class="debug-key">State</span><span class="debug-val"
+                id="dbg-state">awaiting</span></div>
+            <div class="debug-row"><span class="debug-key">Happy</span><span class="debug-val"
+                id="dbg-brightness">0.000</span></div>
+            <div class="debug-row"><span class="debug-key">Neutral</span><span class="debug-val"
+                id="dbg-contrast">0.000</span></div>
+            <div class="debug-row"><span class="debug-key">Tension</span><span class="debug-val"
+                id="dbg-motion">0.000</span></div>
+            <div class="debug-row"><span class="debug-key">Valence</span><span class="debug-val"
+                id="dbg-valence">0.000</span></div>
+            <div class="debug-row"><span class="debug-key">Arousal</span><span class="debug-val"
+                id="dbg-arousal">0.000</span></div>
+            <div class="debug-row"><span class="debug-key">Confidence</span><span class="debug-val"
+                id="dbg-confidence">0%</span></div>
           </div>
         </aside>
 
