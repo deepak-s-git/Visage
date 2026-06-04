@@ -1337,6 +1337,120 @@
   }
 }
 
+/* ── Responsive: Tablet / Small Desktop ── */
+@media (max-width: 768px) {
+  /* Entry Gate */
+  .entry-gate-content { padding: 24px; }
+
+  /* Story Journey */
+  .story-block { padding: 0 24px; margin-bottom: 15vh; }
+
+  /* Orbital Gallery Cards - CRITICAL FIX */
+  .gallery-card { width: clamp(280px, 85vw, 460px); padding: 24px; }
+  .g-card-content h3 { font-size: 20px; }
+
+  /* Core Hack / Matrix */
+  .matrix-info-cards { gap: 10vw; }
+  .hack-title { font-size: 1.8rem; letter-spacing: 4px; }
+  .hack-alert { padding: 16px 32px; }
+  .hack-data-nodes { gap: 24px; }
+  .hack-node { min-width: 160px; }
+
+  /* Crash Windows - CRITICAL FIX */
+  .crash-window { min-width: unset !important; width: 90vw; max-width: 420px; }
+  .cw-headline { font-size: 1.5rem; }
+
+  /* Tron Rings - CRITICAL FIX */
+  .r-1 { width: min(800px, 90vw); height: min(800px, 90vw); }
+  .r-2 { width: min(600px, 70vw); height: min(600px, 70vw); }
+  .r-3 { width: min(400px, 50vw); height: min(400px, 50vw); }
+
+  /* Megacity / Stadium */
+  .huge-cyber-btn { padding: 16px 32px; font-size: 16px; }
+  .holo-title, .card-title { font-size: 2rem; }
+  #tron-scoreboard { gap: 24px; font-size: 20px; }
+
+  /* Collapse Veil */
+  .collapse-btn { padding: 16px 36px; }
+}
+
+/* ── Responsive: Mobile ── */
+@media (max-width: 600px) {
+  /* Entry Gate */
+  .entry-gate-content { padding: 16px; }
+  .entry-gate-sub { font-size: 8px; }
+
+  /* Landing - System Data Overlays */
+  .system-data.data-tl { left: 20px; top: 24px; }
+  .system-data.data-tr { right: 20px; top: 24px; }
+  .system-data.data-bl { left: 20px; bottom: 24px; }
+  .system-data.data-br { right: 20px; bottom: 24px; }
+  .system-data { font-size: 7px; }
+
+  /* Story Journey */
+  .story-block { padding: 0 16px; margin-bottom: 10vh; }
+
+  /* Orbital Gallery Cards */
+  .gallery-card { padding: 16px; }
+  .g-card-content h3 { font-size: 18px; }
+  .g-card-content p { font-size: 11px; line-height: 1.6; }
+  .g-card-eyebrow { font-size: 8px; }
+  .g-card-num { font-size: 28px; }
+
+  /* Core Hack / Matrix */
+  .matrix-info-cards { flex-direction: column; gap: 2rem; align-items: center; }
+  .info-container { padding: 20px; max-width: 90vw; }
+  .hack-title { font-size: 1.4rem; letter-spacing: 2px; }
+  .hack-alert { padding: 12px 20px; }
+  .hack-warning-text { font-size: 12px; letter-spacing: 2px; }
+  .hack-data-nodes { flex-direction: column; gap: 16px; align-items: center; }
+  .hack-node { min-width: unset; width: 80vw; max-width: 300px; }
+  .h-val { font-size: 18px; }
+  .hud-line { width: 80px; }
+  .ambient-hud { font-size: 9px; }
+
+  /* Crash Windows */
+  .crash-window { width: 92vw; max-width: 360px; }
+  .cw-headline { font-size: 1.2rem; }
+  .cw-body { padding: 1rem; }
+  .cw-dense { padding: 0.75rem 1rem; font-size: 0.7rem; }
+
+  /* Tron Rings */
+  .r-1 { width: min(800px, 95vw); height: min(800px, 95vw); }
+  .r-2 { width: min(600px, 75vw); height: min(600px, 75vw); }
+  .r-3 { width: min(400px, 55vw); height: min(400px, 55vw); }
+
+  /* Megacity / Stadium */
+  .huge-cyber-btn { padding: 12px 24px; font-size: 14px; margin-top: 30px; }
+  .holo-title, .card-title { font-size: 1.5rem; }
+  .holo-desc, .card-desc { font-size: 0.95rem; }
+  #tron-scoreboard { gap: 16px; font-size: 16px; }
+
+  /* Collapse Veil */
+  .collapse-btn { padding: 14px 28px; font-size: 12px; letter-spacing: 0.2em; }
+}
+
+/* ── Responsive: Extra Small Mobile ── */
+@media (max-width: 400px) {
+  /* Extra small screens */
+  .gallery-card { width: 95vw; padding: 12px; }
+  .g-card-content h3 { font-size: 16px; }
+  .g-card-content p { font-size: 10px; }
+
+  .hack-title { font-size: 1.2rem; letter-spacing: 1px; }
+  .hack-alert { padding: 10px 16px; }
+
+  .crash-window { width: 95vw; max-width: unset; }
+
+  .holo-title, .card-title { font-size: 1.25rem; }
+
+  .huge-cyber-btn { padding: 10px 20px; font-size: 12px; }
+
+  .collapse-btn { padding: 12px 24px; font-size: 11px; }
+
+  .system-data { font-size: 6px; letter-spacing: 0.15em; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .scroll-line-fill {
     animation: none;
