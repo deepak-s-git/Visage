@@ -23,7 +23,7 @@ import { runCinematicLoader } from './loading/loader.js';
 import { initLandingScene } from './landing/scene.js';
 import { initKineticGrid } from './landing/kinetic-grid.js';
 import { initTextParticles } from './landing/text-particles.js';
-import { initScrollReveal, playLandingIntro, setLandingScene } from './animations/scroll-reveal.js';
+import { initScrollReveal, playLandingIntro, setLandingScene, skipToInterface } from './animations/scroll-reveal.js';
 import { initInterfaceAnimations } from './animations/gsap-controller.js';
 import { initCustomCursor } from './animations/cursor.js';
 import { initDecryptEffect } from './animations/decrypt-effect.js';
@@ -45,11 +45,11 @@ function showEntryGate() {
     // Fade in
     gsap.fromTo(gate, { opacity: 0 }, { opacity: 1, duration: 0.8, ease: 'power2.out' });
 
-    gate.addEventListener('click', async () => {
-      // Start audio on this user gesture, but schedule it precisely 1.5s in the future
-      await startAfterGesture(1.5);
+    gate.addEventListener('click', () => {
+      // Trigger audio start asynchronously (no await blocking the visual transition)
+      startAfterGesture(1.5);
 
-      // Dissolve gate over exactly 1.5s
+      // Dissolve gate instantly over 1.5s
       gsap.to(gate, {
         opacity: 0, duration: 1.5, ease: 'power2.inOut',
         onComplete: () => {
@@ -66,6 +66,39 @@ function showEntryGate() {
 async function init() {
   // Phase -1: Init custom cursor instantly
   initCustomCursor();
+  
+  // Developer keyboard shortcut: Press Shift + I or Shift + D to skip to interface
+  window.addEventListener('keydown', (e) => {
+    if ((e.key === 'I' || e.key === 'D') && e.shiftKey) {
+      skipToInterface();
+      initInterfaceAnimations();
+      initDecryptEffect();
+    }
+  });
+
+  // Check for developer mode (either URL query parameter or localStorage)
+  const urlParams = new URLSearchParams(window.location.search);
+  const isDevMode = urlParams.has('dev') || urlParams.has('interface') || localStorage.getItem('visage-dev-interface') === 'true';
+
+  if (isDevMode) {
+    // Pre-fetch audio buffer
+    initAmbientAudio();
+
+    // Instantiate background Three.js components so they exist but are bypassed
+    const canvas = document.getElementById('landing-canvas');
+    const scene = initLandingScene(canvas);
+    setLandingScene(scene);
+    window._visageScene = scene;
+    const gridAPI = initKineticGrid('kinetic-grid-canvas');
+    window._visageGrid = gridAPI;
+
+    // Bypass loader/scroll-reveal and skip straight to the main interface!
+    skipToInterface();
+    initInterfaceAnimations();
+    initDecryptEffect();
+    return;
+  }
+
   // Phase 0: Pre-fetch audio buffer immediately
   initAmbientAudio();
 
