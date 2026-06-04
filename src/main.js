@@ -115,6 +115,19 @@ async function init() {
   // Phase 1.5: Initialize Text Particle Engine on the landing text
   initTextParticles('.landing-content');
 
+  // Phase 1.6: Pre-load MediaPipe Face Landmarker / Emotion model in the background
+  setTimeout(() => {
+    if (window.ensureEmotionEngine) {
+      console.log('[Visage] Pre-loading emotion engine AI model in background...');
+      const engine = window.ensureEmotionEngine();
+      engine.ensureEmotionModelLoaded().then(() => {
+        console.log('[Visage] Background AI Model pre-load complete.');
+      }).catch(err => {
+        console.warn('[Visage] Background AI Model pre-load failed (will retry on click):', err);
+      });
+    }
+  }, 1000);
+
   // Phase 2: Attempt true autoplay via Web Audio API
   const result = await attemptAutoplay();
 
