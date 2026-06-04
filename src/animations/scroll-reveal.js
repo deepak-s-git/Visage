@@ -710,8 +710,8 @@ function goToHome() {
       // Set the skip-loader flag in localStorage so the freshly reloaded page bypasses the 14s boot sequence
       localStorage.setItem('visage-skip-loader', 'true');
       
-      // Cleanly reload the page to clear WebGL contexts, game loops, audio nodes, and cameras completely
-      window.location.reload();
+      // Cleanly redirect back to the home page without any dev/interface query parameters
+      window.location.href = window.location.origin + window.location.pathname;
     }
   });
 }
@@ -939,4 +939,109 @@ function triggerBlackholeCollapse() {
   setTimeout(() => {
     setLandingActive(false);
   }, 2500);
+}
+
+/** Developer Mode: Skip straight to the main interactive interface */
+export function skipToInterface() {
+  console.log("Developer Mode: Skipping straight to the Main Interface.");
+  
+  // 1. Hide loading screen immediately
+  const loader = document.getElementById('loading-screen');
+  if (loader) loader.remove();
+  
+  // 2. Hide scroll container immediately
+  const scrollContainer = document.querySelector('.experience-scroll-container');
+  if (scrollContainer) scrollContainer.style.display = 'none';
+  
+  // 3. Stop scrolling
+  document.documentElement.style.overflow = 'hidden';
+  document.body.style.overflow = 'hidden';
+  lenis.stop();
+  ScrollTrigger.getAll().forEach(st => st.disable());
+
+  // 4. Force setup blackhole collapse and hide landing canvases to optimize performance
+  if (landingScene) {
+    if (landingScene.triggerBlackhole) {
+      landingScene.triggerBlackhole();
+    }
+    const canvas = document.getElementById('landing-canvas');
+    if (canvas) canvas.style.display = 'none';
+    const gridCanvas = document.getElementById('kinetic-grid-canvas');
+    if (gridCanvas) gridCanvas.style.display = 'none';
+  }
+
+  // 5. Inject Home Button
+  injectHomeButton();
+
+  // 6. Make main interface visible and opaque
+  const mainInterface = document.querySelector('.main-interface');
+  if (mainInterface) {
+    mainInterface.style.display = 'block';
+    mainInterface.style.opacity = '1';
+    mainInterface.style.background = 'rgba(1, 1, 2, 0.5)';
+    mainInterface.style.backdropFilter = 'blur(20px)';
+    mainInterface.style.webkitBackdropFilter = 'blur(20px)';
+    mainInterface.style.pointerEvents = 'auto';
+  }
+
+  // 7. Ensure shell is visible
+  gsap.set('.shell', { opacity: 1 });
+
+  // 8. Make all interface components visible immediately (bypass GSAP stagger animations)
+  gsap.set('header', { opacity: 1, y: 0 });
+  gsap.set(['.hd-wordmark', '.hd-subtitle', '.hd-install', '#live-clock'], { opacity: 1 });
+  gsap.set('.status-pill', { opacity: 1, scale: 1 });
+
+  gsap.set('.sidebar-left', { opacity: 1, x: 0 });
+  gsap.set('.sidebar-left .section-label', { opacity: 1 });
+  gsap.set('.catalogue', { opacity: 1, scale: 1 });
+  gsap.set('.catalogue-item', { opacity: 1, x: 0 });
+  gsap.set('.spotify-panel > *', { opacity: 1, y: 0 });
+
+  gsap.set('.center-col', { opacity: 1, y: 0, scale: 1 });
+  gsap.set('.cam-wrap', { opacity: 1, scale: 1, borderColor: 'var(--glass-border)' });
+  gsap.set('.reticle', { scale: 1, opacity: 1 });
+  gsap.set(['.cam-label', '.no-cam-icon', '.no-cam-text', '.cam-enable-btn'], { opacity: 1 });
+  gsap.set(['.detect-btn', '.debug-toggle-btn'], { opacity: 1, y: 0 });
+
+  gsap.set('.sidebar-right', { opacity: 1, x: 0 });
+  gsap.set('.sidebar-right > *', { opacity: 1, y: 0 });
+  gsap.set(['#fill-conf', '#fill-valence-pos', '#fill-valence-neg', '#fill-arousal-pos', '#fill-arousal-neg'], { width: '0%' });
+
+  gsap.set('footer', { opacity: 1, y: 0 });
+  gsap.set('footer .foot-text', { opacity: 1 });
+
+  const audioToggle = document.getElementById('audio-toggle');
+  if (audioToggle) gsap.set(audioToggle, { opacity: 1, scale: 1 });
+  const homeBtn = document.getElementById('home-button');
+  if (homeBtn) gsap.set(homeBtn, { opacity: 1, scale: 1 });
+
+  // 9. Put static texts instead of decryption to avoid flickering/delay
+  const hdWordmark = document.querySelector('.hd-wordmark');
+  if (hdWordmark) hdWordmark.textContent = 'Visage.obj';
+  const hdSubtitle = document.querySelector('.hd-subtitle');
+  if (hdSubtitle) hdSubtitle.textContent = 'Affective Computing Module';
+  const hdInstall = document.querySelector('.hd-install');
+  if (hdInstall) hdInstall.textContent = 'Installation 03';
+
+  const labels = document.querySelectorAll('.sidebar-left .section-label');
+  if (labels && labels[0]) labels[0].textContent = 'Process Catalogue';
+  if (labels && labels[1]) labels[1].textContent = 'Signal Source';
+
+  const rightLabel = document.querySelector('.resonance-label-row .section-label');
+  if (rightLabel) rightLabel.textContent = 'Detected Emotion';
+
+  const footTexts = document.querySelectorAll('footer .foot-text');
+  if (footTexts && footTexts[0]) footTexts[0].textContent = 'Data is transient. No records retained.';
+  if (footTexts && footTexts[1]) footTexts[1].textContent = 'SYS_MEM 1024MB';
+
+  const scanLine = document.getElementById('scan-line');
+  if (scanLine) scanLine.classList.add('active');
+
+  // 10. Dispatch visage-collapse-veil event immediately to activate camera stream
+  window.dispatchEvent(new CustomEvent('visage-collapse-veil'));
+  
+  // 11. Disable landing active mode for audio mapping and set to interface track volume
+  setLandingActive(false);
+  setTrackVolumesImmediate([0.0, 0.0, 1.0]);
 }
