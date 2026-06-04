@@ -237,7 +237,7 @@ function toggleDebugPanel() {
   debugEnabled = !debugEnabled;
   const panel = document.getElementById('debug-panel');
   const btn = document.getElementById('debug-toggle-btn');
-  panel.classList.toggle('visible', debugEnabled);
+  panel.classList.toggle('open', debugEnabled);
   btn.textContent = debugEnabled ? 'Hide Debug Signals' : 'Show Debug Signals';
   if (debugEnabled) updateDebugPanel({ state: analysisState });
 }
