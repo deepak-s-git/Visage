@@ -362,6 +362,21 @@ body.cursor-hidden .cursor-trail {
   box-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
 }
 
+@media (max-width: 768px) {
+  .loader-status-wrap {
+    bottom: 70px;
+  }
+  
+  .loader-bar {
+    width: 180px;
+    bottom: 50px;
+  }
+  
+  .loader-eyebrow {
+    letter-spacing: 0.3em;
+  }
+}
+
 @media (max-width: 600px) {
   .loader-wordmark { font-size: clamp(24px, 10vw, 40px); }
   .loader-status-wrap { bottom: 60px; }
@@ -688,6 +703,16 @@ footer::before {
   .home-button svg {
     width: 14px;
     height: 14px;
+  }
+}
+
+@media (max-width: 400px) {
+  .loader-bar {
+    width: 140px;
+  }
+  
+  .loader-wordmark {
+    font-size: clamp(24px, 10vw, 36px);
   }
 }
 
